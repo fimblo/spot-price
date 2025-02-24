@@ -1,0 +1,21 @@
+database/
+output/
+.venv/
+ideas/
+
+# emacs and vscode
+*~
+.#*
+.vscode/
+
+
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+*.whl
+build/
+dist/
+*.pyo
