@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS batch_run (
     message VARCHAR(255),
     status INTEGER NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_spot_price_unique
+ON spot_price (date, time_start, time_end, region, source_id);
 EOF
 
 echo "Database and table setup complete."
