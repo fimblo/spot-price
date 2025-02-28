@@ -100,7 +100,7 @@ def main(region, spot_date, mock):
         print("Failed to fetch")
     else:
         spot_price_json, source, source_desc = result
-        print(f"date: {spot_date.strftime("%Y-%m-%d")}, region: {region}, source: {source}")
+        print(f"date: {spot_date.strftime('%Y-%m-%d')}, region: {region}, source: {source}")
 
         save_spot_prices(region,
                         source,
