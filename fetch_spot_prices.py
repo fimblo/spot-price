@@ -6,7 +6,7 @@ import sqlite3
 
 
 def fetch_spot_prices__mock():
-    file_path = "output/20250225.json"
+    file_path = "etc/sample-mock.json"
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             return [json.load(file), file_path, "Mock data for testing"]
