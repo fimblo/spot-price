@@ -35,45 +35,56 @@ def save_spot_prices(db_path, region, source, source_desc, spot_price_json):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # store info on this run
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cursor.execute('INSERT INTO batch (import_dtime) VALUES (?)', (current_time,))
-    cursor.execute('SELECT id FROM batch WHERE import_dtime = ?', (current_time,))
-    batch_id = cursor.fetchone()[0]
+    try:
+        # store info on this run
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('INSERT INTO batch (import_dtime, status, message) VALUES (?, ?, ?)', (current_time, 255, 'Failed'))
+        cursor.execute('SELECT id FROM batch WHERE import_dtime = ?', (current_time,))
+        batch_id = cursor.fetchone()[0]
 
-    # update spot price source
-    cursor.execute('INSERT OR IGNORE INTO source (name, description) VALUES (?, ?)', (source, source_desc))
-    cursor.execute('SELECT id FROM source WHERE name = ?', (source,))
-    source_id = cursor.fetchone()[0]
+        # update spot price source
+        cursor.execute('INSERT OR IGNORE INTO source (name, description) VALUES (?, ?)', (source, source_desc))
+        cursor.execute('SELECT id FROM source WHERE name = ?', (source,))
+        source_id = cursor.fetchone()[0]
 
-    # insert spot prices
-    for entry in spot_price_json:
-        cursor.execute(
-            '''
-                INSERT INTO spot_price (kWh_SEK, kWh_EUR, EXR, time_start, time_end, region, source_id, batch_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(time_start, time_end, region, source_id) DO UPDATE SET
-                        kWh_SEK = excluded.kWh_SEK,
-                        kWh_EUR = excluded.kWh_EUR,
-                        EXR = excluded.EXR,
-                        batch_id = excluded.batch_id
-            ''', (
-                entry['SEK_per_kWh'],
-                entry['EUR_per_kWh'],
-                entry['EXR'],
-                entry['time_start'],
-                entry['time_end'],
-                region,
-                source_id,
-                batch_id
+        # insert spot prices
+        for entry in spot_price_json:
+            cursor.execute(
+                '''
+                    INSERT INTO spot_price (kWh_SEK, kWh_EUR, EXR, time_start, time_end, region, source_id, batch_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(time_start, time_end, region, source_id) DO UPDATE SET
+                            kWh_SEK = excluded.kWh_SEK,
+                            kWh_EUR = excluded.kWh_EUR,
+                            EXR = excluded.EXR,
+                            batch_id = excluded.batch_id
+                ''', (
+                    entry['SEK_per_kWh'],
+                    entry['EUR_per_kWh'],
+                    entry['EXR'],
+                    entry['time_start'],
+                    entry['time_end'],
+                    region,
+                    source_id,
+                    batch_id
+                )
             )
-        )
+        
+        conn.commit()
 
-    conn.commit()
-    conn.close()
+        # update the batch status
+        cursor.execute('UPDATE batch SET status = ?, message = ? WHERE id = ?', (1, 'Success', batch_id))
+        conn.commit()
+
+    except sqlite3.DatabaseError as e:
+        print(f"An error occured: {e}")
+        conn.rollback()
+
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
-    mock=True
+    mock=False
     region = "SE4"
     spot_date = datetime.now() + timedelta(days=1)
 
