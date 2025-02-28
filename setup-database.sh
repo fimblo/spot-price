@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS source (
 );
 CREATE TABLE IF NOT EXISTS spot_price (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,     -- YYYY-MM-DD
     kWh_SEK REAL NOT NULL,
     kWh_EUR REAL,
     EXR REAL,
@@ -30,12 +29,12 @@ CREATE TABLE IF NOT EXISTS spot_price (
 CREATE TABLE IF NOT EXISTS batch (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     import_dtime DATETIME NOT NULL,
-    spot_date DATETIME NOT NULL,
-    region VARCHAR(4) NOT NULL
+    status INTEGER,
+    message TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_spot_price_unique
-ON spot_price (date, time_start, time_end, region, source_id);
+ON spot_price (time_start, time_end, region, source_id);
 EOF
 
 echo "Database and table setup complete."
