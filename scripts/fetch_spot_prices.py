@@ -5,14 +5,19 @@ import json
 import os
 import sqlite3
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+MOCK_DATA=f"{script_dir}/../etc/sample-mock.json"
+DATABASE=f"{script_dir}/../database/spot_prices.db"
+
+
 
 def fetch_spot_prices__mock():
-    file_path = "etc/sample-mock.json"
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            return [json.load(file), file_path, "Mock data for testing"]
+    if os.path.exists(MOCK_DATA):
+        with open(MOCK_DATA, 'r') as file:
+            return [json.load(file), MOCK_DATA, "Mock data for testing"]
     else:
-        print(f"Mock file {file_path} not found.")
+        print(f"Mock file {MOCK_DATA} not found.")
         return None
 
 
@@ -32,8 +37,8 @@ def fetch_spot_prices__elprisetjustnu(region=str, spot_price_date=datetime):
         return None
 
 
-def save_spot_prices(db_path, region, source, source_desc, spot_price_json):
-    conn = sqlite3.connect(db_path)
+def save_spot_prices(region, source, source_desc, spot_price_json):
+    conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
     try:
@@ -97,8 +102,7 @@ def main(region, spot_date, mock):
         spot_price_json, source, source_desc = result
         print(f"date: {spot_date.strftime("%Y-%m-%d")}, region: {region}, source: {source}")
 
-        save_spot_prices("database/spot_prices.db",
-                        region,
+        save_spot_prices(region,
                         source,
                         source_desc,
                         spot_price_json)

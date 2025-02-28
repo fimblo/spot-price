@@ -1,7 +1,9 @@
 #!/bin/bash
 
+MY_DIR=$(dirname $0)
+
 # Create a directory for the database if it doesn't exist
-mkdir -p database
+mkdir -p $MY_DIR/../database
 
 # Navigate to the database directory
 cd database
