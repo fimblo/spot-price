@@ -1,0 +1,63 @@
+import sqlite3
+from datetime import datetime, timedelta
+import statistics
+
+
+
+# Connect to the SQLite database
+conn = sqlite3.connect('database/spot_prices.db')
+cursor = conn.cursor()
+
+# Query to get the time, status, and message of up to 2 batch runs
+cursor.execute('''
+    SELECT import_dtime, status, message
+    FROM batch
+    ORDER BY import_dtime ASC
+    LIMIT 2
+''')
+batch_runs = cursor.fetchall()
+
+# Print batch run information
+print("Batch Runs:")
+for run in batch_runs:
+    import_dtime, status, message = run
+    print(f"Time: {import_dtime}, Status: {status}, Message: {message}")
+
+# Get the current date
+today = datetime.now().date().strftime('%Y-%m-%d')
+tomorrow = (datetime.now().date() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+# Query to get spot prices in SEK for the current day
+cursor.execute('''
+    SELECT time_start, kWh_SEK
+    FROM spot_price
+    WHERE time_start >= ? AND time_end <= ?
+''', (today,tomorrow))
+
+spot_prices_with_time = cursor.fetchall()
+
+# Calculate min, max, average, and median
+if spot_prices_with_time:
+    # Extract prices and find min/max with their times
+    spot_prices = [row[1] for row in spot_prices_with_time]
+    min_time_str , min_price  = min(spot_prices_with_time, key=lambda x: x[1])
+    max_time_str , max_price = max(spot_prices_with_time, key=lambda x: x[1])
+    avg_price = sum(spot_prices) / len(spot_prices)
+    median_price = statistics.median(spot_prices)
+
+    min_time = datetime.fromisoformat(min_time_str).strftime("%I%p")
+    max_time = datetime.fromisoformat(max_time_str).strftime("%I%p")
+
+    # Print spot price statistics
+    print("\nSpot Price Statistics for Today:")
+    print(f"Min: {float(min_price):.2f} SEK at {min_time}")
+    print(f"Max: {float(max_price):.2f} SEK at {max_time}")
+    print(f"Average: {avg_price:.2f} SEK")
+    print(f"Median: {median_price:.2f} SEK")
+
+else:
+    print("\nNo spot prices available for today.")
+
+
+# Close the database connection
+conn.close()
