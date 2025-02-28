@@ -1,3 +1,4 @@
+import argparse
 import requests
 from datetime import datetime, timedelta
 import json
@@ -83,12 +84,8 @@ def save_spot_prices(db_path, region, source, source_desc, spot_price_json):
     finally:
         conn.close()
 
-if __name__ == "__main__":
-    mock=False
-    region = "SE4"
-    spot_date = datetime.now() + timedelta(days=1)
 
-    result = []
+def main(region, spot_date, mock):
     if mock == True:
         result = fetch_spot_prices__mock()
     else:
@@ -106,3 +103,13 @@ if __name__ == "__main__":
                         source_desc,
                         spot_price_json)
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Fetch and save spot prices.')
+    parser.add_argument('--region', type=str, default='SE4', help='Region code')
+    parser.add_argument('--datediff', type=int, default=1, help='0=today, 1=tomorrow, etc')
+    parser.add_argument('--mock', action='store_true', help='Use mock data')
+    args = parser.parse_args()
+
+    spot_date = datetime.now() + timedelta(days=args.datediff)
+    main(args.region, spot_date, args.mock)
