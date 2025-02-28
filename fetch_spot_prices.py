@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 
+
 def fetch_spot_prices__mock():
     file_path = "output/20250225.json"
     if os.path.exists(file_path):
@@ -31,73 +32,45 @@ def fetch_spot_prices__elprisetjustnu(region=str, spot_price_date=datetime):
 
 
 def save_spot_prices(db_path, region, source, source_desc, spot_price_json):
-    sql_insert_source = '''
-        INSERT OR IGNORE INTO source (name, description)
-            VALUES (?, ?)
-        '''
-    sql_get_source_id = '''
-        SELECT id FROM source
-            WHERE name = ?
-        '''
-    sql_insert_batch = '''
-        INSERT INTO batch (import_dtime)
-            VALUES (?)
-        '''
-    sql_get_batch_id = '''
-        SELECT id FROM batch
-            WHERE import_dtime = ?
-        '''
-
-    sql_upsert_spot_price = '''
-        INSERT INTO spot_price (kWh_SEK, kWh_EUR, EXR, time_start, time_end, region, source_id, batch_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(time_start, time_end, region, source_id) DO UPDATE SET
-                kWh_SEK = excluded.kWh_SEK,
-                kWh_EUR = excluded.kWh_EUR,
-                EXR = excluded.EXR,
-                batch_id = excluded.batch_id
-        '''
-
-
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # store info on this run
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cursor.execute(sql_insert_batch, (current_time,))
-    cursor.execute(sql_get_batch_id, (current_time,))
+    cursor.execute('INSERT INTO batch (import_dtime) VALUES (?)', (current_time,))
+    cursor.execute('SELECT id FROM batch WHERE import_dtime = ?', (current_time,))
     batch_id = cursor.fetchone()[0]
 
     # update spot price source
-    cursor.execute(sql_insert_source, (source, source_desc))
-    cursor.execute(sql_get_source_id, (source,))
+    cursor.execute('INSERT OR IGNORE INTO source (name, description) VALUES (?, ?)', (source, source_desc))
+    cursor.execute('SELECT id FROM source WHERE name = ?', (source,))
     source_id = cursor.fetchone()[0]
-
 
     # insert spot prices
     for entry in spot_price_json:
-        data_tuple = (
-            entry['SEK_per_kWh'],
-            entry['EUR_per_kWh'],
-            entry['EXR'],
-            entry['time_start'],
-            entry['time_end'],
-            region,
-            source_id,
-            batch_id
+        cursor.execute(
+            '''
+                INSERT INTO spot_price (kWh_SEK, kWh_EUR, EXR, time_start, time_end, region, source_id, batch_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(time_start, time_end, region, source_id) DO UPDATE SET
+                        kWh_SEK = excluded.kWh_SEK,
+                        kWh_EUR = excluded.kWh_EUR,
+                        EXR = excluded.EXR,
+                        batch_id = excluded.batch_id
+            ''', (
+                entry['SEK_per_kWh'],
+                entry['EUR_per_kWh'],
+                entry['EXR'],
+                entry['time_start'],
+                entry['time_end'],
+                region,
+                source_id,
+                batch_id
+            )
         )
-        cursor.execute(sql_upsert_spot_price, data_tuple)
 
     conn.commit()
     conn.close()
-
-
-def print_json(data):
-    if data is not None:
-        print(json.dumps(data, indent=2))
-    else:
-        print("No data to display")
-
 
 if __name__ == "__main__":
     mock=True
