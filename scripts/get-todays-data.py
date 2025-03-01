@@ -65,26 +65,24 @@ if spot_prices_with_time:
 
     # Create a nice graph
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[time_start for time_start, _ in spot_prices_with_time],
-                             y=[price*100 for price in spot_prices],
-                               mode='lines+markers', name='Spot Price'))
+    fig.add_trace(go.Bar(
+        x=[time_start for time_start, _ in spot_prices_with_time],
+        y=[price*100 for _, price in spot_prices_with_time],
+        name='Spot Price'  # Name of the series
+    ))
+
+    # Fix layout
     fig.update_layout(
         title=f"Spot Price Statistics for {today_str}",
         xaxis_title='Time',
         yaxis_title='Price in SEK',
         xaxis=dict(
-            range=[today_str + " 00:00", today_str + " 23:00"], 
-            tickmode='linear',  # Set tick mode to linear to place a tick on every hour
-            tick0=today_str + " 00:00",  # Start ticks at midnight of the current day
-            dtick=3600000,  # Set ticks at every hour (3600000 milliseconds)
-            tickformat='%H'  # Display only the hour
+            tick0=today_str + " 00:00",  # Start at 0 o'clock
+            dtick=3600000,  # one histogram per hour
+            tickformat='%H'
         )
-    ) 
-    # Save the figure to a file
+    )
     pio.write_image(fig, "spot_prices_today.png", format='png')
-
-    print("\n".join(str(price) for price in spot_prices_with_time))
-
 
 else:
     print("\nNo spot prices available for today.")
