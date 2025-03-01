@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import statistics
 import os
+import plotly.graph_objects as go
+import plotly.io as pio
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 DATABASE=f"{script_dir}/../database/spot_prices.db"
@@ -60,6 +62,26 @@ if spot_prices_with_time:
     print(f"Max: {float(max_price):.2f} SEK at {max_time}")
     print(f"Average: {avg_price:.2f} SEK")
     print(f"Median: {median_price:.2f} SEK")
+
+    # Create a nice graph
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[time_start for time_start, _ in spot_prices_with_time], y=spot_prices, mode='lines+markers', name='Spot Price'))
+    fig.update_layout(
+        title='Spot Price Statistics for Today',
+        xaxis_title='Time',
+        yaxis_title='Price in SEK',
+        xaxis=dict(
+            tickmode='linear',  # Set tick mode to linear to place a tick on every hour
+            tick0=today_str + " 00:00",  # Start ticks at midnight of the current day
+            dtick=3600000,  # Set ticks at every hour (3600000 milliseconds)
+            tickformat='%H'  # Display only the hour
+        )
+    ) 
+    # Save the figure to a file
+    pio.write_image(fig, "spot_prices_today.png", format='png')
+
+    print("\n".join(str(price) for price in spot_prices_with_time))
+
 
 else:
     print("\nNo spot prices available for today.")
