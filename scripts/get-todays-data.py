@@ -64,10 +64,15 @@ if spot_prices_with_time:
     print(f"Median: {median_price:.2f} SEK")
 
     # Create a nice graph
+    normalized_prices = [(price - min_price) / (max_price - min_price) for _, price in spot_prices_with_time]
+    colors = [f'rgb({255 * norm}, {0}, {255 * (1 - norm)})' for norm in normalized_prices]
+
+
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=[time_start for time_start, _ in spot_prices_with_time],
         y=[price*100 for _, price in spot_prices_with_time],
+        marker_color = colors,
         name='Spot Price'  # Name of the series
     ))
 
