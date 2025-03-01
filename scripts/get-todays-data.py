@@ -1,11 +1,15 @@
 import sqlite3
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import statistics
+import os
 
-
+script_dir = os.path.dirname(os.path.abspath(__file__))
+DATABASE=f"{script_dir}/../database/spot_prices.db"
+TIMEZONE='Europe/Stockholm'
 
 # Connect to the SQLite database
-conn = sqlite3.connect('database/spot_prices.db')
+conn = sqlite3.connect(DATABASE)
 cursor = conn.cursor()
 
 # Query to get the time, status, and message of up to 2 batch runs
@@ -24,14 +28,16 @@ for run in batch_runs:
     print(f"Time: {import_dtime}, Status: {status}, Message: {message}")
 
 # Get the current date
-today = datetime.now().date().strftime('%Y-%m-%d')
-tomorrow = (datetime.now().date() + timedelta(days=1)).strftime('%Y-%m-%d')
+timezone = ZoneInfo(TIMEZONE)
+today = datetime.now(timezone).date()
+today_str = today.strftime('%Y-%m-%d')
+tomorrow = datetime.now(timezone).date() + timedelta(days=1)
 
 # Query to get spot prices in SEK for the current day
 cursor.execute('''
     SELECT time_start, kWh_SEK
     FROM spot_price
-    WHERE time_start >= ? AND time_end <= ?
+    WHERE time_start >= ? AND time_start < ?
 ''', (today,tomorrow))
 
 spot_prices_with_time = cursor.fetchall()

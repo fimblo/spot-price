@@ -1,6 +1,7 @@
 import argparse
 import requests
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import json
 import os
 import sqlite3
@@ -9,7 +10,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 MOCK_DATA=f"{script_dir}/../etc/sample-mock.json"
 DATABASE=f"{script_dir}/../database/spot_prices.db"
-
+TIMEZONE='Europe/Stockholm'
 
 
 def fetch_spot_prices__mock():
@@ -115,5 +116,5 @@ if __name__ == "__main__":
     parser.add_argument('--mock', action='store_true', help='Use mock data')
     args = parser.parse_args()
 
-    spot_date = datetime.now() + timedelta(days=args.datediff)
+    spot_date = datetime.now(ZoneInfo(TIMEZONE)) + timedelta(days=args.datediff)
     main(args.region, spot_date, args.mock)
