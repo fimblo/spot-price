@@ -65,12 +65,15 @@ if spot_prices_with_time:
 
     # Create a nice graph
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[time_start for time_start, _ in spot_prices_with_time], y=spot_prices, mode='lines+markers', name='Spot Price'))
+    fig.add_trace(go.Scatter(x=[time_start for time_start, _ in spot_prices_with_time],
+                             y=[price*100 for price in spot_prices],
+                               mode='lines+markers', name='Spot Price'))
     fig.update_layout(
-        title='Spot Price Statistics for Today',
+        title=f"Spot Price Statistics for {today_str}",
         xaxis_title='Time',
         yaxis_title='Price in SEK',
         xaxis=dict(
+            range=[today_str + " 00:00", today_str + " 23:00"], 
             tickmode='linear',  # Set tick mode to linear to place a tick on every hour
             tick0=today_str + " 00:00",  # Start ticks at midnight of the current day
             dtick=3600000,  # Set ticks at every hour (3600000 milliseconds)
