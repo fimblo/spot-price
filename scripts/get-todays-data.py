@@ -37,7 +37,7 @@ tomorrow = datetime.now(timezone).date() + timedelta(days=1)
 
 # Query to get spot prices in SEK for the current day
 cursor.execute('''
-    SELECT time_start, kWh_SEK
+    SELECT time_start, kWh_SEK, region
     FROM spot_price
     WHERE time_start >= ? AND time_start < ?
 ''', (today,tomorrow))
@@ -48,8 +48,8 @@ spot_prices_with_time = cursor.fetchall()
 if spot_prices_with_time:
     # Extract prices and find min/max with their times
     spot_prices = [row[1] for row in spot_prices_with_time]
-    min_time_str , min_price  = min(spot_prices_with_time, key=lambda x: x[1])
-    max_time_str , max_price = max(spot_prices_with_time, key=lambda x: x[1])
+    min_time_str , min_price, _  = min(spot_prices_with_time, key=lambda x: x[1])
+    max_time_str , max_price, _ = max(spot_prices_with_time, key=lambda x: x[1])
     avg_price = sum(spot_prices) / len(spot_prices)
     median_price = statistics.median(spot_prices)
 
@@ -57,21 +57,21 @@ if spot_prices_with_time:
     max_time = datetime.fromisoformat(max_time_str).strftime("%I%p")
 
     # Print spot price statistics
-    print("\nSpot Price Statistics for Today:")
+    print(f"\nSpot Price Statistics for {today_str}:")
     print(f"Min: {float(min_price):.2f} SEK at {min_time}")
     print(f"Max: {float(max_price):.2f} SEK at {max_time}")
     print(f"Average: {avg_price:.2f} SEK")
     print(f"Median: {median_price:.2f} SEK")
 
     # Create a nice graph
-    normalized_prices = [(price - min_price) / (max_price - min_price) for _, price in spot_prices_with_time]
+    normalized_prices = [(price - min_price) / (max_price - min_price) for _, price, _ in spot_prices_with_time]
     colors = [f'rgb({255 * norm}, {0}, {255 * (1 - norm)})' for norm in normalized_prices]
 
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=[time_start for time_start, _ in spot_prices_with_time],
-        y=[price*100 for _, price in spot_prices_with_time],
+        x=[time_start for time_start, _, _ in spot_prices_with_time],
+        y=[price*100 for _, price, _ in spot_prices_with_time],
         marker_color = colors,
         name='Spot Price'  # Name of the series
     ))
@@ -87,7 +87,8 @@ if spot_prices_with_time:
             tickformat='%H'
         )
     )
-    pio.write_image(fig, "spot_prices_today.png", format='png')
+    region = spot_prices_with_time[0][2]
+    pio.write_image(fig, f"spot-price-{today_str}-{region}-SEK.png", format='png')
 
 else:
     print("\nNo spot prices available for today.")
