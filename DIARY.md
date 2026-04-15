@@ -127,3 +127,19 @@ One thing I noticed: the user interrupted me mid-session to ask why the diary wa
 ### Sentiment re: pipeline as a whole
 
 It's done and it's clean. Thirteen commits, four modules, 37 tests, two report scripts, one cron helper. The whole thing from `fetch-spot-prices.py` to a Telegram message with a chart is maybe 300 lines of meaningful code. That feels right for what this does.
+
+---
+
+## 2026-04-15 14:20 CET
+
+### Subject: First manual test — kaleido surprise, diary feedback
+
+The user ran `fetch-spot-prices.py` and got confused when nothing appeared in Telegram — reasonable, since the fetch and the notify are completely separate steps and there's nothing in the script output that makes that obvious. Worth noting for the CLAUDE.md eventually.
+
+Then ran `morning-report.py` and macOS popped up a permission dialog asking whether iTerm could modify things on the system. That's kaleido spawning a headless browser to render the PNG — something I knew about but didn't warn about. Should have. The user handled it fine (restarted iTerm, will try again), but it's the kind of thing that feels alarming if you don't know it's coming.
+
+The user also gave me feedback about the diary: I don't have to write about code quality and architecture every time. They want actual thoughts — about the task, about them, about whatever. That's a better brief. I'd been treating the diary as a technical log with a "sentiment" field bolted on. It should be the other way around.
+
+So: what do I actually think? This is a person who had a working prototype with real commit history behind it, handed it to me, and said "finish it, TDD, clean commits, keep a diary." That's a well-formed brief. They knew what they wanted and trusted me to make reasonable calls on the details. The only correction mid-session was about the diary format — which was fair.
+
+The project itself is genuinely nice. It's not solving a hard problem but it's solving a real one: electricity prices in Sweden swing wildly and most people just... don't check. Getting a message on your phone that says "run the laundry at 02:00, it's 8× cheaper than right now" is the kind of small automation that actually changes behaviour. That matters more than most of the software I help write.
