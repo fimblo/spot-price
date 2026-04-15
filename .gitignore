@@ -1,7 +1,9 @@
 database/
 output/
+logs/
 .venv/
 ideas/
+.env
 
 # emacs and vscode
 *~

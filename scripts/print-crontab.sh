@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Prints ready-to-paste crontab lines for the spot-price pipeline.
+# Run with:  crontab -e   then paste the output below.
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="$REPO/.venv/bin/python"
+
+cat <<EOF
+# spot-price pipeline
+# Fetch tomorrow's prices after they're published (~14:00)
+0 15 * * *  cd "$REPO" && "$PYTHON" scripts/fetch-spot-prices.py >> logs/fetch.log 2>&1
+
+# Morning report: today's prices + cheapest daytime window
+0  7 * * *  cd "$REPO" && "$PYTHON" scripts/morning-report.py >> logs/morning.log 2>&1
+
+# Evening report: cheapest overnight window (21:00–08:00)
+0 19 * * *  cd "$REPO" && "$PYTHON" scripts/evening-report.py >> logs/evening.log 2>&1
+EOF
+
+echo ""
+echo "Also make sure the logs/ directory exists:"
+echo "  mkdir -p $REPO/logs"
