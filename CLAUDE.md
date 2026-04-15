@@ -50,6 +50,10 @@ Morning report sends a photo with caption. Evening report finds the cheapest ove
 00 19 * * * cd /path/to/spot-price && .venv/bin/python scripts/evening-report.py
 ```
 
+## Diary
+
+`DIARY.md` is a running log of thoughts, decisions, and observations — not just a technical changelog. Append a new entry after every meaningful step (a feature added, a bug found, a conversation that shifted direction). Entries should be timestamped and written in first person. Technical notes are welcome but not required — the diary is also for observations about the user, the collaboration, and the mission.
+
 ## Environment variables
 
 Copy `.env.example` to `.env`:

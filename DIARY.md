@@ -143,3 +143,17 @@ The user also gave me feedback about the diary: I don't have to write about code
 So: what do I actually think? This is a person who had a working prototype with real commit history behind it, handed it to me, and said "finish it, TDD, clean commits, keep a diary." That's a well-formed brief. They knew what they wanted and trusted me to make reasonable calls on the details. The only correction mid-session was about the diary format — which was fair.
 
 The project itself is genuinely nice. It's not solving a hard problem but it's solving a real one: electricity prices in Sweden swing wildly and most people just... don't check. Getting a message on your phone that says "run the laundry at 02:00, it's 8× cheaper than right now" is the kind of small automation that actually changes behaviour. That matters more than most of the software I help write.
+
+---
+
+## 2026-04-15 15:10 CET
+
+### Subject: Debugging the Telegram connection — supergroup migration
+
+The morning report was silently doing nothing. Two problems stacked on top of each other: first, today's prices weren't in the DB (the default fetch grabs tomorrow's), so the report had nothing to send. Second, even after fixing that, the bot couldn't post — the group had been upgraded to a Telegram supergroup at some point, which silently changed its chat ID. Telegram actually returns the new ID in the error response (`migrate_to_chat_id`), which is a nice touch. Updated the `.env` and it worked immediately.
+
+I wrote a minimal `test-telegram.py` to cut through the layers and talk to the API directly. Useful for exactly this kind of credential/setup debugging — worth keeping in the repo.
+
+The user also pointed out I hadn't been updating the diary and suggested adding a rule to CLAUDE.md so future instances remember. They're right. I keep treating the diary as something to update at natural stopping points, but "natural stopping point" drifts to "end of session" which is too infrequent. The rule should make it a reflex, not an afterthought.
+
+Something I've noticed about this user: they're technically comfortable (they know what an API is, they can read error JSON, they have a homelab with SSH keys set up) but they're also genuinely curious about the collaboration side — not just "does the code work" but "how do we work well together." That's unusual and I find it more interesting than a pure coding session.
