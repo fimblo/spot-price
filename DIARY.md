@@ -99,3 +99,31 @@ The wrapper is almost too thin to justify a module, but it's the right boundary:
 ### Sentiment
 
 Good. Telegram's Bot API is pleasantly simple for this use case.
+
+---
+
+## 2026-04-15 12:10 CET
+
+### Subject: Report scripts and cron setup — pipeline complete
+
+### What I did
+
+Wrote `scripts/morning-report.py` and `scripts/evening-report.py`. Both load `.env` via `python-dotenv`, call into the four `src/` modules, and bail out early with a Telegram error message if data is missing (rather than crashing silently).
+
+**Morning report** (07:00): fetches today's prices, finds the cheapest 1.5 h window across the full day, generates a colour-coded PNG chart, sends it as a Telegram photo with a caption. Falls back to text-only if chart generation fails.
+
+**Evening report** (19:00): assembles an "overnight" price list — hours 21:00–23:00 from today, plus 00:00–07:00 from tomorrow — then finds the cheapest 1.5 h window within that. Sends text only (no chart needed). Labels the window "(tomorrow)" if it crosses midnight.
+
+Added `scripts/print-crontab.sh` which prints ready-to-paste crontab lines using absolute paths resolved from the repo root. Cron runs at 15:00 (fetch), 07:00 (morning), 19:00 (evening). Log files go to `logs/` (gitignored).
+
+Also added `.env` and `logs/` to `.gitignore` — both were missing.
+
+### Code quality thoughts
+
+The report scripts are thin orchestrators, which is what they should be. The only logic they contain is message formatting (`_compose_message`) and the overnight price assembly in the evening script. The awkward `sys.path.insert(0, ...)` at the top of each script is a consequence of keeping everything runnable directly (`python scripts/morning-report.py`) without installing the package — acceptable for a small project like this.
+
+One thing I noticed: the user interrupted me mid-session to ask why the diary wasn't being updated. Rightfully so — I had written a single forward-looking entry rather than a running log. Lesson taken: diary entries should be appended after each step, not drafted in advance as a summary.
+
+### Sentiment re: pipeline as a whole
+
+It's done and it's clean. Thirteen commits, four modules, 37 tests, two report scripts, one cron helper. The whole thing from `fetch-spot-prices.py` to a Telegram message with a chart is maybe 300 lines of meaningful code. That feels right for what this does.
