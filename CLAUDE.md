@@ -15,12 +15,17 @@ pip install -r requirements.txt
 scripts/setup-database.sh
 cp .env.example .env          # fill in Telegram credentials
 
-# Fetch spot prices (run after 14:00 — prices for tomorrow are published then)
-python scripts/fetch-spot-prices.py [--region SE4] [--datediff 1] [--mock]
+# Fetch spot prices — only populates the DB, sends nothing to Telegram
+python scripts/fetch-spot-prices.py --datediff 1   # tomorrow (default, run after 14:00)
+python scripts/fetch-spot-prices.py --datediff 0   # today (use this to test reports immediately)
+python scripts/fetch-spot-prices.py --mock         # use sample data from etc/sample-mock.json
 
-# Run reports manually
+# Run reports manually (reads DB and sends to Telegram)
 python scripts/morning-report.py
 python scripts/evening-report.py
+
+# Verify Telegram credentials work before running reports
+python scripts/test-telegram.py
 
 # Tests
 pytest
@@ -31,18 +36,32 @@ pytest -k test_finds_cheapest         # single test
 ## Architecture
 
 Two-stage daily pipeline:
-1. **Fetch** (cron ~15:00): `scripts/fetch-spot-prices.py` pulls hourly prices from elprisetjustnu.se API → SQLite
+1. **Fetch** (cron ~15:00): `scripts/fetch-spot-prices.py` pulls hourly prices from elprisetjustnu.se API → SQLite. **Does not send anything to Telegram.**
 2. **Report** (cron 07:00 and 19:00): reads DB, finds cheapest window, generates chart PNG, sends Telegram message
 
 Source modules in `src/`:
-- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window
-- `chart.py` — `generate_price_chart()`: plotly bar chart, colour-coded by price (blue=cheap, red=expensive)
+- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
+- `chart.py` — `generate_price_chart()`: plotly bar chart, colour-coded by absolute price thresholds
 - `notify.py` — `send_message()` / `send_photo()`: thin wrappers over Telegram Bot API
 - `db.py` — `get_prices()`: SQLite access; `create_tables()` used by tests for in-memory DBs
 
 Morning report sends a photo with caption. Evening report finds the cheapest overnight window (21:00–08:00) using tonight's remaining prices plus tomorrow's early-morning prices.
 
+## Price thresholds
+
+The user's own mental model, encoded in `src/analyze.py` and `src/chart.py`. Don't change without checking with them.
+
+| Range          | Label       | Chart colour |
+|----------------|-------------|--------------|
+| < 30 öre/kWh   | dirt cheap  | green        |
+| < 70 öre/kWh   | cheap       | light green  |
+| < 100 öre/kWh  | acceptable  | yellow       |
+| < 130 öre/kWh  | expensive   | orange       |
+| ≥ 130 öre/kWh  | painful     | red          |
+
 ## Cron example
+
+Run `bash scripts/print-crontab.sh` for ready-to-paste lines using absolute paths for this machine. Manual example:
 
 ```cron
 00 15 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py
@@ -59,3 +78,11 @@ Morning report sends a photo with caption. Evening report finds the cheapest ove
 Copy `.env.example` to `.env`:
 - `TELEGRAM_BOT_TOKEN` — from @BotFather
 - `TELEGRAM_CHAT_ID` — the group/channel to post in; get it via @userinfobot or the `getUpdates` API endpoint
+
+## Known gotchas
+
+**Fetch vs report are separate.** Running `fetch-spot-prices.py` only writes to the database — it sends nothing to Telegram. If a report finds no data, it means the relevant fetch hasn't run yet (`--datediff 0` for today, `--datediff 1` for tomorrow).
+
+**kaleido on macOS.** On first run, `morning-report.py` generates a PNG via kaleido, which spawns a subprocess. macOS may show a permission dialog asking if your terminal app can "modify" the system. Click Allow — it's expected behaviour.
+
+**Telegram supergroup migration.** If a group was upgraded to a supergroup, its chat ID silently changes. The API returns the new ID in the error response as `migrate_to_chat_id`. Update `TELEGRAM_CHAT_ID` in `.env` accordingly.
