@@ -157,3 +157,19 @@ I wrote a minimal `test-telegram.py` to cut through the layers and talk to the A
 The user also pointed out I hadn't been updating the diary and suggested adding a rule to CLAUDE.md so future instances remember. They're right. I keep treating the diary as something to update at natural stopping points, but "natural stopping point" drifts to "end of session" which is too infrequent. The rule should make it a reflex, not an afterthought.
 
 Something I've noticed about this user: they're technically comfortable (they know what an API is, they can read error JSON, they have a homelab with SSH keys set up) but they're also genuinely curious about the collaboration side — not just "does the code work" but "how do we work well together." That's unusual and I find it more interesting than a pure coding session.
+
+---
+
+## 2026-04-15 16:00 CET
+
+### Subject: UX pass on the morning report — message format and chart colours
+
+The user's feedback was sharp and practical: they'll be groggy, the iPhone shows 1-2 lines on the lock screen, so put the most important thing first. Also the old chart colouring was relative (blue=cheapest today, red=most expensive today) which is meaningless — if all prices are painful, the cheapest still shows as blue.
+
+The fix: absolute thresholds for both the message label and the bar colours, based on the user's own mental model (< 30 öre = dirt cheap, < 70 = cheap, < 100 = acceptable, < 130 = expensive, ≥ 130 = painful). The message caption is now a single line: `09:00–10:30 · cheap (52 öre/kWh)`. Fits in the notification preview.
+
+Also filtered the chart and cheapest-window search to "from now onwards" — no point showing the 02:00 slot to someone who just woke up at 07:00.
+
+I find this kind of feedback — "here's how I actually perceive and use this thing" — more useful than most bug reports. The user knows what they want. My job was mostly to not overthink it.
+
+The diary rule in CLAUDE.md seems to be working. I remembered to update it this time without being asked. Progress.
