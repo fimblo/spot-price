@@ -64,3 +64,41 @@ class TestFindCheapestWindow:
         result = find_cheapest_window(make_prices([0.3, 0.3, 0.3]))
         assert result is not None
         assert abs(result['avg_price'] - 0.3) < 1e-9
+
+
+class TestPriceLabel:
+    def test_dirt_cheap(self):
+        from src.analyze import price_label
+        assert price_label(0.15) == 'dirt cheap'   # 15 öre
+
+    def test_cheap(self):
+        from src.analyze import price_label
+        assert price_label(0.50) == 'cheap'         # 50 öre
+
+    def test_acceptable(self):
+        from src.analyze import price_label
+        assert price_label(0.85) == 'acceptable'    # 85 öre
+
+    def test_expensive(self):
+        from src.analyze import price_label
+        assert price_label(1.15) == 'expensive'     # 115 öre
+
+    def test_painful(self):
+        from src.analyze import price_label
+        assert price_label(1.50) == 'painful'       # 150 öre
+
+    def test_boundary_30_ore_is_cheap_not_dirt_cheap(self):
+        from src.analyze import price_label
+        assert price_label(0.30) == 'cheap'
+
+    def test_boundary_70_ore_is_acceptable_not_cheap(self):
+        from src.analyze import price_label
+        assert price_label(0.70) == 'acceptable'
+
+    def test_boundary_exactly_1kr_is_expensive(self):
+        from src.analyze import price_label
+        assert price_label(1.00) == 'expensive'
+
+    def test_boundary_exactly_130_ore_is_painful(self):
+        from src.analyze import price_label
+        assert price_label(1.30) == 'painful'

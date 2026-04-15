@@ -46,3 +46,33 @@ class TestGeneratePriceChart:
         with patch('plotly.io.write_image'):
             generate_price_chart(SAMPLE_PRICES, '2025-02-25', 'SE4', output_dir=new_dir)
         assert os.path.isdir(new_dir)
+
+
+class TestPriceColor:
+    def test_dirt_cheap_is_green(self):
+        from src.chart import price_color
+        assert price_color(0.15) == '#27ae60'
+
+    def test_cheap_is_light_green(self):
+        from src.chart import price_color
+        assert price_color(0.50) == '#a8d86e'
+
+    def test_acceptable_is_yellow(self):
+        from src.chart import price_color
+        assert price_color(0.85) == '#f1c40f'
+
+    def test_expensive_is_orange(self):
+        from src.chart import price_color
+        assert price_color(1.15) == '#e67e22'
+
+    def test_painful_is_red(self):
+        from src.chart import price_color
+        assert price_color(1.50) == '#e74c3c'
+
+    def test_boundary_30_ore_is_light_green(self):
+        from src.chart import price_color
+        assert price_color(0.30) == '#a8d86e'
+
+    def test_boundary_130_ore_is_red(self):
+        from src.chart import price_color
+        assert price_color(1.30) == '#e74c3c'
