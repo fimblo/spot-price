@@ -3,6 +3,24 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from typing import Optional
 
+# (threshold in öre, hex colour)
+_COLOR_THRESHOLDS = [
+    (30,  '#27ae60'),   # green      — dirt cheap
+    (70,  '#a8d86e'),   # light green — cheap
+    (100, '#f1c40f'),   # yellow     — acceptable
+    (130, '#e67e22'),   # orange     — expensive
+]
+_COLOR_PAINFUL = '#e74c3c'   # red
+
+
+def price_color(price_sek: float) -> str:
+    """Return a hex bar colour for a price in SEK/kWh based on fixed öre thresholds."""
+    ore = price_sek * 100
+    for threshold, color in _COLOR_THRESHOLDS:
+        if ore < threshold:
+            return color
+    return _COLOR_PAINFUL
+
 
 def generate_price_chart(
     prices: list[dict],
@@ -29,12 +47,7 @@ def generate_price_chart(
 
     os.makedirs(output_dir, exist_ok=True)
 
-    prices_sek = [p['kWh_SEK'] for p in prices]
-    min_p, max_p = min(prices_sek), max(prices_sek)
-    span = max_p - min_p or 1.0  # avoid division by zero when all prices equal
-
-    normalized = [(p - min_p) / span for p in prices_sek]
-    colors = [f'rgb({int(255 * n)}, 0, {int(255 * (1 - n))})' for n in normalized]
+    colors = [price_color(p['kWh_SEK']) for p in prices]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(

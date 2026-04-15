@@ -1,6 +1,23 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+# (threshold in öre, label)
+_PRICE_THRESHOLDS = [
+    (30,  'dirt cheap'),
+    (70,  'cheap'),
+    (100, 'acceptable'),
+    (130, 'expensive'),
+]
+
+
+def price_label(price_sek: float) -> str:
+    """Return a human label for a price in SEK/kWh based on fixed öre thresholds."""
+    ore = price_sek * 100
+    for threshold, label in _PRICE_THRESHOLDS:
+        if ore < threshold:
+            return label
+    return 'painful'
+
 
 def find_cheapest_window(prices: list[dict], window_hours: float = 1.5) -> Optional[dict]:
     """
