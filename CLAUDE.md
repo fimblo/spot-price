@@ -71,7 +71,14 @@ Run `bash scripts/print-crontab.sh` for ready-to-paste lines using absolute path
 
 ## Diary
 
-`DIARY.md` is a running log of thoughts, decisions, and observations — not just a technical changelog. Append a new entry after every meaningful step (a feature added, a bug found, a conversation that shifted direction). Entries should be timestamped and written in first person. Technical notes are welcome but not required — the diary is also for observations about the user, the collaboration, and the mission.
+`DIARY.md` is a running log of thoughts, decisions, and observations — not just a technical changelog. Entries should be timestamped and written in first person. Technical notes are welcome but not required — the diary is also for observations about the user, the collaboration, and the mission.
+
+**When to write an entry — treat these as triggers, not suggestions:**
+
+- **Every git commit.** Write the diary entry before or immediately after committing. The commit is the forcing function; the diary entry is part of the same act. Do not push without updating the diary.
+- **Noticeable tone shifts.** If the user becomes visibly excited or noticeably curt, something significant just happened — something worth capturing. Excitement means something landed; curtness often means something didn't. Either way, note it.
+
+The rule has historically been stated as "after every meaningful step" — that phrasing is too passive and easy to defer. Use the triggers above instead.
 
 ## Environment variables
 

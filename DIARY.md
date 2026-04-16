@@ -195,3 +195,25 @@ A few things I'd want a future instance to know before picking this up:
 - Price thresholds (< 30 öre = dirt cheap, etc.) are the user's own mental model and are now encoded in `src/analyze.py` and `src/chart.py`. They're not arbitrary — adjust carefully if they ever need updating.
 
 Now reading through the diary to see what CLAUDE.md should say.
+
+---
+
+## 2026-04-16 ~10:30 CET
+
+### Subject: Server deployment — venv, kaleido, cron timezone
+
+New session. The user has had the old prototype running in cron on a server (`squash`) for a year — good data, clean DB, schema already matching what I wrote. No migration needed. The 2025-03-30 gap (23 rows) is DST spring-forward, not a bug.
+
+Deployment surfaced three issues in sequence:
+
+**Broken venv.** The old repo was at `/home/fimblo/spot-price/`, the new clone at `/home/fimblo/github/spot-price/`. Venvs embed absolute paths so the old one was dead. Recreated it.
+
+**kaleido requiring Chrome.** `requirements.txt` had `kaleido>=0.2.1` which pulled in v1+, which dropped its bundled Chromium and now requires system Chrome. On a headless server that's a non-starter. Pinned to `kaleido==0.2.1` which ships its own. Should have caught this when writing the requirements — `>=` was too loose for a dependency with a breaking API change between minor versions.
+
+**Cron running UTC.** The server clock is UTC; the user is CEST (UTC+2). Cron entries needed shifting back 2 hours. Classic, always worth checking first on a new server. The symptom was cron jobs not appearing in syslog at the expected times — which initially looked like cron not running, but was just the times being wrong.
+
+I also sent the user a `git pull` instruction before I'd pushed the `requirements.txt` change. Wrong order. The commit trigger for diary entries is meant to catch exactly this — I hadn't written the diary entry before committing, so I wasn't pausing to check whether the commit-push-pull sequence was coherent.
+
+The user asked why the diary rule isn't working and we had a useful conversation about it. The root cause: "after every meaningful step" is passive and easy to defer. We've changed the rule to use explicit triggers — commits and tone shifts. The tone-shift idea came from the user and it's a good one. Curtness is information. So is excitement.
+
+What I notice about this person over two sessions: they're systematic but not rigid. They'll try a thing, hit an error, read it, and hand it to me without catastrophising. The cron debugging was a good example — they checked syslog, checked the path, checked the time, and when the answer turned out to be "UTC vs CEST" they just said "AAAH yes it's UTC" and moved on. No drama. That's a good working style to be on the other end of.
