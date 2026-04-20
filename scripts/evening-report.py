@@ -52,11 +52,9 @@ def _compose_message(cheapest: dict | None, today: date) -> str:
     day_label = ' (tomorrow)' if start.date() == tomorrow else ''
 
     return (
-        f"<b>Overnight cheapest window — {REGION}</b>\n\n"
-        f"Best slot tonight:\n"
-        f"  {start.strftime('%H:%M')}–{end.strftime('%H:%M')}{day_label}"
-        f"  →  {cheapest['avg_price'] * 100:.1f} öre/kWh\n\n"
-        f"Start dishes or laundry then!"
+        f"Billigast: "
+        f"{start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
+        f" → {cheapest['avg_price'] * 100:.1f} öre/kWh\n\n"
     )
 
 
