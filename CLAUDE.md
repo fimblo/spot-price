@@ -40,12 +40,12 @@ Two-stage daily pipeline:
 2. **Report** (cron 07:00 and 19:00): reads DB, finds cheapest window, generates chart PNG, sends Telegram message
 
 Source modules in `src/`:
-- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
+- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `find_cheap_start_span()`: same sliding window, but also returns the contiguous span of start times whose window-average shares the cheapest's price label (used by the morning report so a text-only lock-screen notification doesn't mislead the reader into waiting for the single cheapest minute when a wider window is just as good); `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
 - `chart.py` — `generate_price_chart()`: plotly bar chart, colour-coded by absolute price thresholds
 - `notify.py` — `send_message()` / `send_photo()`: thin wrappers over Telegram Bot API
 - `db.py` — `get_prices()`: SQLite access; `create_tables()` used by tests for in-memory DBs
 
-Morning report sends a photo with caption. Evening report finds the cheapest overnight window (21:00–08:00) using tonight's remaining prices plus tomorrow's early-morning prices.
+Morning report sends a photo with caption. The caption shows both the cheapest 1.5h window *and* the wider span of start times that would still be in the same price zone, so a text-only notification on a lock screen still conveys "you can start any time in this range" rather than just the single optimal start. Evening report finds the cheapest overnight window (21:00–08:00) using tonight's remaining prices plus tomorrow's early-morning prices.
 
 ## Price thresholds
 

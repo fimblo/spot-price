@@ -2,7 +2,7 @@
 
 Fetches Swedish electricity spot prices (SE4 / Skåne) and sends twice-daily Telegram notifications:
 
-- **07:00** — cheapest 1.5-hour window remaining today, with a colour-coded price chart
+- **07:00** — span of equally-good start times for a 1.5-hour load, plus the single cheapest window, with a colour-coded price chart
 - **19:00** — cheapest overnight window (21:00 tonight → 08:00 tomorrow)
 
 Useful for deciding when to run laundry or dishes.

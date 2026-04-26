@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.db import get_prices
-from src.analyze import find_cheapest_window, price_label
+from src.analyze import find_cheap_start_span
 from src.chart import generate_price_chart
 from src.notify import send_message, send_photo
 
@@ -24,12 +24,23 @@ TIMEZONE = 'Europe/Stockholm'
 REGION = 'SE4'
 
 
-def _compose_message(cheapest: dict) -> str:
-    start = cheapest['start'].strftime('%H:%M')
-    end   = cheapest['end'].strftime('%H:%M')
-    ore   = cheapest['avg_price'] * 100
-    label = price_label(cheapest['avg_price'])
-    return f"{start}–{end} · {label} ({ore:.0f} öre/kWh)"
+def _compose_message(span: dict) -> str:
+    best = span['best']
+    best_start = best['start'].strftime('%H:%M')
+    best_end   = best['end'].strftime('%H:%M')
+    ore        = best['avg_price'] * 100
+    label      = span['label']
+
+    earliest = span['earliest_start'].strftime('%H:%M')
+    latest   = span['latest_start'].strftime('%H:%M')
+
+    if earliest == latest:
+        return f"{best_start}–{best_end} · {label} ({ore:.0f} öre/kWh)"
+
+    return (
+        f"{label.capitalize()} · start {earliest}–{latest}\n"
+        f"Best {best_start}–{best_end} · {ore:.0f} öre/kWh"
+    )
 
 
 def main():
@@ -53,7 +64,7 @@ def main():
 
     # Only consider hours from now onwards — no point showing a window that has passed
     remaining = [p for p in prices if int(p['time_start'][11:13]) >= current_hour]
-    cheapest = find_cheapest_window(remaining or prices)
+    span = find_cheap_start_span(remaining or prices)
 
     # Chart shows from current hour onwards — skip history the user can't use
     chart_prices = [p for p in prices if int(p['time_start'][11:13]) >= current_hour]
@@ -62,7 +73,7 @@ def main():
     output_dir = os.path.join(script_dir, '..', 'output')
     chart_path = generate_price_chart(chart_prices, str(today), REGION, output_dir=output_dir)
 
-    message = _compose_message(cheapest)
+    message = _compose_message(span)
 
     if chart_path:
         send_photo(token, chat_id, chart_path, caption=message)

@@ -217,3 +217,40 @@ I also sent the user a `git pull` instruction before I'd pushed the `requirement
 The user asked why the diary rule isn't working and we had a useful conversation about it. The root cause: "after every meaningful step" is passive and easy to defer. We've changed the rule to use explicit triggers — commits and tone shifts. The tone-shift idea came from the user and it's a good one. Curtness is information. So is excitement.
 
 What I notice about this person over two sessions: they're systematic but not rigid. They'll try a thing, hit an error, read it, and hand it to me without catastrophising. The cron debugging was a good example — they checked syslog, checked the path, checked the time, and when the answer turned out to be "UTC vs CEST" they just said "AAAH yes it's UTC" and moved on. No drama. That's a good working style to be on the other end of.
+
+---
+
+## 2026-04-26 10:58 CET
+
+### Subject: Morning report — span of dirt-cheap start times, not just the single cheapest minute
+
+### What I did
+
+The user pointed out a real UX gap. The morning Telegram message includes a chart, but on iOS lock-screen previews the chart is hidden — only the caption shows. The caption was "15:00–16:30 · dirt cheap (4 öre/kWh)", which makes it look like you have to wait until 3pm. In reality, on the day in question, prices were already nearly as cheap from late morning. The text alone misled.
+
+We brainstormed five approaches in a back-and-forth. The user proposed discretising the price curve into zones with a bit of smoothing. I pointed out the 8am spike in their example sat *before* the cheap zone, so smoothing was solving a problem that wasn't really biting. We also realised that adding finer rows to the price-zone table — which was the user's instinct — would actually shorten the span, not extend it (boundaries arrive sooner). The user noticed mid-thought that they'd circled back to my option 2.
+
+Settling point: slide a 1.5h window across the day, classify each window with `price_label`, and report the contiguous span of *start times* whose window-average shares the cheapest's label. This matches the actual use case ("when can I start a 1.5h laundry load and still get a near-optimal price?") instead of approximating it via per-hour classification.
+
+Implementation: new `find_cheap_start_span()` in `src/analyze.py`, kept the original `find_cheapest_window` alongside (evening report still uses it). Morning report now produces:
+
+```
+Dirt cheap · start 11:00–16:00
+Best 15:00–16:30 · 4 öre/kWh
+```
+
+Falls back to the old single-line format when the span collapses to a single start time. Six new tests (empty, insufficient data, span collapse, span extension, asymmetric outlier, all-painful day). Updated CLAUDE.md and README.md.
+
+### Code quality thoughts
+
+`find_cheap_start_span` re-implements most of `find_cheapest_window`'s sliding-window loop. Could extract a helper that yields (start, avg) tuples and have both consume it. Wasn't a big enough win to justify changing the existing function's internals — if a third caller appears, refactor then.
+
+I went back and forth on the message format — one line vs two, "covered period" (11:00–17:30) vs "start-time span" (11:00–16:00). Decisive question: which reading is least misleading? The start-time span is literal and actionable; the covered period is approximate and could mislead a careful reader who notices that the 16:00 start runs until 17:30. Picked literal.
+
+### Sentiment
+
+Good design conversation. The user came in with a concrete observation, brought their own ideas, and self-corrected mid-thought without prompting. They also said "efficiency isn't a problem, the script could run for 15 minutes" — a permission-granting move, clearing the runway for whatever's cleanest, not a request for something fancier. I read it that way and didn't reach for fancier methods.
+
+I missed updating the docs on the first pass and they caught it: "did you update documentation?" Fair catch. Worth filing under "always do docs in the same loop as the code change, not as an afterthought."
+
+The reframing from "classify the price curve" to "classify the set of viable start times" was the moment the design clicked. That came from the user, not me — they made the use case explicit ("I use this to decide when to do my laundry or dishes") and that shifted what "good answer" meant.
