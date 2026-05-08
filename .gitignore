@@ -5,11 +5,11 @@ logs/
 ideas/
 .env
 
-# emacs and vscode
+# emacs and vscode - and claude
 *~
 .#*
 .vscode/
-
+CLAUDE.md
 
 
 # python
