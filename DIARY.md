@@ -253,4 +253,28 @@ Good design conversation. The user came in with a concrete observation, brought 
 
 I missed updating the docs on the first pass and they caught it: "did you update documentation?" Fair catch. Worth filing under "always do docs in the same loop as the code change, not as an afterthought."
 
+---
+
+## 2026-08-24 20:56 CEST
+
+### Subject: Evening report gets a chart too, plus day/night chart theming
+
+### What I did
+
+Feedback from actual users of the Telegram channel: the evening report was text-only while the morning report sends a chart. They wanted parity. Rewrote `scripts/evening-report.py` to mirror the morning report's shape — a colour-coded chart plus a caption showing the cheapest 1.5h window and the wider span of equally-good start times, sent as a photo. Range changed from a fixed 21:00–08:00 overnight window to a rolling "now through 12 hours ahead," which is what was actually asked for and also reads more naturally against a chart that starts at send-time.
+
+Pulled the caption formatting (previously duplicated as `_compose_message` in the morning script) into a shared `format_window_message()` in `src/analyze.py`, since both scripts now produce it.
+
+Then a follow-up: could the two report images be told apart at a glance, e.g. as thumbnails, without reading the caption? Telegram gives a bot no control over the chat bubble itself — that's the recipient's client theme, not exposed via the Bot API. So the lever is the chart image. Added a `theme` param to `generate_price_chart()` (`'day'` / `'night'`) using the light/dark surface and ink tokens from the dataviz skill's validated reference palette, rather than inventing new hex values. Left the price-severity bar colours (green→red) untouched — CLAUDE.md is explicit that those encode the user's own mental model and aren't mine to change without asking.
+
+Tested for real rather than trusting exit codes: fetched live SE4 data for today+tomorrow, ran the evening report against the actual Telegram bot, and separately called `send_photo` directly to confirm the HTTP response, not just that the script didn't crash. Also rendered both themes against synthetic data and eyeballed the PNGs before calling it done — gridlines, axis text, and bar colours all read fine on both the light and near-black surface.
+
+### Code quality thoughts
+
+`_THEMES` dict in `chart.py` is small and inline rather than its own module — fine at two themes; if a third chrome variant shows up, promote it.
+
+### Sentiment
+
+Straightforward, low-friction session — the user gave two clear, sequential asks ("evening report should match morning," then "distinguish them visually") and reacted to progress with short affirmations ("Excellent!") rather than course-correction, so I kept building forward instead of re-checking direction. Good instinct to ask "or can we do that too?" about the Telegram bubble — worth taking those aside-questions at face value and giving a real answer (no, and here's why) rather than skating past them to get back to the code.
+
 The reframing from "classify the price curve" to "classify the set of viable start times" was the moment the design clicked. That came from the user, not me — they made the use case explicit ("I use this to decide when to do my laundry or dishes") and that shifted what "good answer" meant.

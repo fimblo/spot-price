@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.db import get_prices
-from src.analyze import find_cheap_start_span
+from src.analyze import find_cheap_start_span, format_window_message
 from src.chart import generate_price_chart
 from src.notify import send_message, send_photo
 
@@ -22,25 +22,6 @@ load_dotenv()
 
 TIMEZONE = 'Europe/Stockholm'
 REGION = 'SE4'
-
-
-def _compose_message(span: dict) -> str:
-    best = span['best']
-    best_start = best['start'].strftime('%H:%M')
-    best_end   = best['end'].strftime('%H:%M')
-    ore        = best['avg_price'] * 100
-    label      = span['label']
-
-    earliest = span['earliest_start'].strftime('%H:%M')
-    latest   = span['latest_start'].strftime('%H:%M')
-
-    if earliest == latest:
-        return f"{best_start}–{best_end} · {label} ({ore:.0f} öre/kWh)"
-
-    return (
-        f"{label.capitalize()} · start {earliest}–{latest}\n"
-        f"Best {best_start}–{best_end} · {ore:.0f} öre/kWh"
-    )
 
 
 def main():
@@ -71,9 +52,9 @@ def main():
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, '..', 'output')
-    chart_path = generate_price_chart(chart_prices, str(today), REGION, output_dir=output_dir)
+    chart_path = generate_price_chart(chart_prices, str(today), REGION, output_dir=output_dir, theme='day')
 
-    message = _compose_message(span)
+    message = format_window_message(span)
 
     if chart_path:
         send_photo(token, chat_id, chart_path, caption=message)

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Fetches Swedish electricity spot prices for SE4 (Skåne) region and sends Telegram notifications twice daily: cheapest 1.5-hour window for today (07:00) and tonight's cheapest overnight window (19:00). Useful for deciding when to run dishes or laundry.
+Fetches Swedish electricity spot prices for SE4 (Skåne) region and sends Telegram notifications twice daily: a price chart with the cheapest 1.5-hour window for the rest of today (07:00) and one for the next 12 hours overnight (19:00). Useful for deciding when to run dishes or laundry.
 
 ## Commands
 
@@ -40,12 +40,14 @@ Two-stage daily pipeline:
 2. **Report** (cron 07:00 and 19:00): reads DB, finds cheapest window, generates chart PNG, sends Telegram message
 
 Source modules in `src/`:
-- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `find_cheap_start_span()`: same sliding window, but also returns the contiguous span of start times whose window-average shares the cheapest's price label (used by the morning report so a text-only lock-screen notification doesn't mislead the reader into waiting for the single cheapest minute when a wider window is just as good); `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
+- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `find_cheap_start_span()`: same sliding window, but also returns the contiguous span of start times whose window-average shares the cheapest's price label (used by both reports so a text-only lock-screen notification doesn't mislead the reader into waiting for the single cheapest minute when a wider window is just as good); `format_window_message()`: renders a `find_cheap_start_span()` result as the caption both reports send; `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
 - `chart.py` — `generate_price_chart()`: plotly bar chart, colour-coded by absolute price thresholds
 - `notify.py` — `send_message()` / `send_photo()`: thin wrappers over Telegram Bot API
 - `db.py` — `get_prices()`: SQLite access; `create_tables()` used by tests for in-memory DBs
 
-Morning report sends a photo with caption. The caption shows both the cheapest 1.5h window *and* the wider span of start times that would still be in the same price zone, so a text-only notification on a lock screen still conveys "you can start any time in this range" rather than just the single optimal start. Evening report finds the cheapest overnight window (21:00–08:00) using tonight's remaining prices plus tomorrow's early-morning prices.
+Both reports send a photo with caption, in the same format: a colour-coded chart plus a caption showing the cheapest 1.5h window *and* the wider span of start times that would still be in the same price zone, so a text-only notification on a lock screen still conveys "you can start any time in this range" rather than just the single optimal start. `format_window_message()` in `src/analyze.py` renders that caption; both scripts share it.
+
+Morning report covers the rest of today, from the current hour onward. Evening report covers the next 12 hours from send time (e.g. 19:00 tonight through ~07:00 tomorrow), combining today's remaining prices with tomorrow's early-morning prices fetched earlier in the day.
 
 ## Price thresholds
 

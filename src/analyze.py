@@ -143,3 +143,30 @@ def find_cheap_start_span(prices: list[dict], window_hours: float = 1.5) -> Opti
         'latest_start': windows[right]['start'],
         'label': target_label,
     }
+
+
+def format_window_message(span: dict) -> str:
+    """
+    Format a find_cheap_start_span() result as a short caption/message.
+
+    Shared by the morning and evening reports so both read the same way:
+    one line when the cheapest window is effectively unique, two lines
+    (zone + span, then the single best window) when a wider span of start
+    times is just as good.
+    """
+    best = span['best']
+    best_start = best['start'].strftime('%H:%M')
+    best_end   = best['end'].strftime('%H:%M')
+    ore        = best['avg_price'] * 100
+    label      = span['label']
+
+    earliest = span['earliest_start'].strftime('%H:%M')
+    latest   = span['latest_start'].strftime('%H:%M')
+
+    if earliest == latest:
+        return f"{best_start}–{best_end} · {label} ({ore:.0f} öre/kWh)"
+
+    return (
+        f"{label.capitalize()} · start {earliest}–{latest}\n"
+        f"Best {best_start}–{best_end} · {ore:.0f} öre/kWh"
+    )
