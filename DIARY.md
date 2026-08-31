@@ -278,3 +278,28 @@ Tested for real rather than trusting exit codes: fetched live SE4 data for today
 Straightforward, low-friction session — the user gave two clear, sequential asks ("evening report should match morning," then "distinguish them visually") and reacted to progress with short affirmations ("Excellent!") rather than course-correction, so I kept building forward instead of re-checking direction. Good instinct to ask "or can we do that too?" about the Telegram bubble — worth taking those aside-questions at face value and giving a real answer (no, and here's why) rather than skating past them to get back to the code.
 
 The reframing from "classify the price curve" to "classify the set of viable start times" was the moment the design clicked. That came from the user, not me — they made the use case explicit ("I use this to decide when to do my laundry or dishes") and that shifted what "good answer" meant.
+
+---
+
+## 2026-08-31 11:30 CET
+
+### Subject: Making the chart readable without unlocking the phone
+
+### What I did
+
+Mattias described the actual failure mode of the reports, which is not a data problem at all: the Telegram thumbnail is too small to locate peaks and troughs in the timeline, so reading it costs an unlock, a scroll, a tap and a zoom. He proposed thin vertical lines at noon/midnight and asked for alternatives.
+
+I generated candidate PNGs and — importantly — compared them *downscaled to 320px with `sips`*, which is what Telegram effectively does. That changed the conclusions twice. My first noon line, drawn in the existing grid colour, vanished entirely at thumbnail size; it needed to be deliberately heavier than the grid to survive. And the night version could not be a straight mirror of the day one, because a thin light line on a dark ground loses more to antialiasing than a dark line on a light ground — 0.55 opacity on white, but 0.85 on the pale blue.
+
+Shipped: a 2px dotted anchor line (noon on the day chart, midnight on the night chart) plus peak/trough time labels aligned along the top of the plot, with 18% headroom added to the y-axis so they clear the tallest bar.
+
+### Design thoughts
+
+Two judgement calls worth recording. First, the night line is pale blue `#9ec9ff` rather than white: blue appears nowhere in the price palette, so the line cannot be misread as a data element — the same property the near-black line already has on the day chart. Second, we dropped leader arrows pointing at the exact bar. Mattias put it well: "the form of the graph tells its story, and the text specifies when is cheapest." With 15-minute bars an arrow points at 1/68th of the frame and reads as clutter; you do not need the exact quarter-hour, you need "late afternoon".
+
+I was also wrong about something and should note it. I agreed too quickly when he said adding text wouldn't help at thumbnail size. It does — the peak label reads *better* than the axis ticks, because it is coloured and sits alone in whitespace rather than in a row of crowded grey numbers. Legibility at small sizes is about contrast and isolation, not absolute type size. Worth remembering before I next reason about a rendering I haven't actually looked at.
+
+### Sentiment
+
+Good session. The habit that paid off was refusing to judge any of this from the full-size render — every useful conclusion came from looking at the 320px version, which is the only size that matters here.
+
