@@ -92,7 +92,7 @@ def generate_price_chart(
     theme: str = 'day',
 ) -> Optional[str]:
     """
-    Generate a colour-coded bar chart of hourly spot prices.
+    Generate a colour-coded bar chart of spot prices.
 
     Bars are coloured by absolute price thresholds (see price_color). Two extra
     cues make the chart readable as a Telegram thumbnail, without opening and

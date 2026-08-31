@@ -36,7 +36,7 @@ pytest -k test_finds_cheapest         # single test
 ## Architecture
 
 Two-stage daily pipeline:
-1. **Fetch** (cron ~15:00): `scripts/fetch-spot-prices.py` pulls hourly prices from elprisetjustnu.se API → SQLite. **Does not send anything to Telegram.**
+1. **Fetch** (cron ~15:00): `scripts/fetch-spot-prices.py` pulls prices from elprisetjustnu.se API (15-minute slots, 96 rows/day) → SQLite. **Does not send anything to Telegram.**
 2. **Report** (cron 07:00 and 19:00): reads DB, finds cheapest window, generates chart PNG, sends Telegram message
 
 Source modules in `src/`:

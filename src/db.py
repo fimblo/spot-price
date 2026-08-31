@@ -48,7 +48,7 @@ def get_prices(
     db_path: Optional[str] = None,
 ) -> list[dict]:
     """
-    Return all hourly spot prices for a given date and region, ordered by time.
+    Return all spot prices for a given date and region, ordered by time.
 
     Uses substr(time_start, 1, 10) for date comparison so it handles ISO
     timestamps with timezone offsets (e.g. '2025-02-25T00:00:00+01:00').

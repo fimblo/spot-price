@@ -303,3 +303,28 @@ I was also wrong about something and should note it. I agreed too quickly when h
 
 Good session. The habit that paid off was refusing to judge any of this from the full-size render — every useful conclusion came from looking at the 320px version, which is the only size that matters here.
 
+
+---
+
+## 2026-08-31 12:05 CET
+
+### Subject: The feed went quarter-hourly and every caption has been wrong since
+
+### What I did
+
+While testing the new chart cues, Mattias mentioned in passing that Sweden moved from hourly to 15-minute spot pricing a while back. I set up the local DB and fetched live data rather than synthesising it — which was the right call, because it turned a design session into a bug hunt.
+
+`find_cheapest_window()` and `find_cheap_start_span()` both computed `full_hours = int(window_hours)` and then consumed that many *rows*. That is only correct while one row is one hour. With quarter-hourly rows, a "1.5 hour" window was two slots — thirty minutes — averaged and then labelled as ninety. Against today's live data the old code reported `05:00–06:30 · dirt cheap (23 öre/kWh)`; the honest answer is `03:00–04:30 · cheap (31 öre/kWh)`. Different time, different price, different zone.
+
+Fixed by inferring slots-per-hour from the gap between the first two rows and scaling the window accordingly. Pulled the shared sliding-window logic into one `_windows()` helper, since the bug existed twice — identical code duplicated across both functions, so it had to be fixed in both places or not at all.
+
+### Code quality thoughts
+
+The regression tests I added deliberately use a shape where counting rows and counting duration give different answers: a very cheap 30-minute dip followed by a moderately cheap 90-minute stretch. Row-counting grabs the dip. I checked the new tests against the old code before committing — two of six fail there, which is the only thing that makes them worth having. Tests that pass on the broken version would have been decoration.
+
+### Sentiment
+
+Sobering. This shipped silently: no crash, no empty chart, no error in the logs — just a plausible-looking wrong time, twice a day, for however long since the switch. The chart was always right, because it plots whatever rows it gets; only the caption lied, and the caption is the part you read on the lock screen. Worth remembering that the failure modes which survive longest are the ones that still look like an answer.
+
+A note on process: I nearly generated fake 15-minute data to test with. Mattias stopped me and said fetch the real thing. If I had synthesised it I would have written a generator that produced 96 rows and confirmed the chart handled them — and I would very likely have missed this entirely, because I would have been testing the chart, which was fine, rather than feeding real rows through the whole pipeline.
+

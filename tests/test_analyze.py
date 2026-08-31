@@ -161,3 +161,56 @@ class TestFindCheapStartSpan:
         assert span['label'] == 'painful'
         assert span['earliest_start'].hour == 0
         assert span['latest_start'].hour == 2
+
+
+def make_quarter_prices(values_sek, start_hour=0, date='2025-02-25'):
+    """Helper: build price list from SEK values, one per 15-minute slot."""
+    return [
+        {
+            'time_start': f'{date}T{(start_hour + i // 4) % 24:02d}:{(i % 4) * 15:02d}:00+01:00',
+            'kWh_SEK': price,
+        }
+        for i, price in enumerate(values_sek)
+    ]
+
+
+class TestQuarterHourlyResolution:
+    """
+    The feed moved from hourly to 15-minute slots. A window must cover a real
+    1.5 hours of data — six quarter-hourly rows — not the first two rows it
+    finds.
+    """
+
+    # A very cheap but short dip, then a longer genuinely cheap stretch.
+    # Counting rows instead of duration picks the dip; counting duration
+    # correctly picks the stretch.
+    DIP_THEN_STRETCH = [0.05, 0.05, 0.9, 0.9] + [0.2] * 6 + [0.9, 0.9]
+
+    def test_window_covers_six_quarter_hour_slots(self):
+        result = find_cheapest_window(make_quarter_prices(self.DIP_THEN_STRETCH))
+        # The 30-minute dip is cheaper per-slot but cannot fill 1.5 hours
+        assert result['start'].hour == 1
+        assert result['start'].minute == 0
+        assert result['avg_price'] == pytest.approx(0.2)
+
+    def test_window_end_is_ninety_minutes_after_start(self):
+        result = find_cheapest_window(make_quarter_prices(self.DIP_THEN_STRETCH))
+        assert (result['end'] - result['start']).total_seconds() == 90 * 60
+
+    def test_returns_none_when_fewer_than_six_slots(self):
+        assert find_cheapest_window(make_quarter_prices([0.1] * 5)) is None
+
+    def test_six_slots_is_exactly_enough(self):
+        assert find_cheapest_window(make_quarter_prices([0.1] * 6)) is not None
+
+    def test_custom_window_hours_scales_with_resolution(self):
+        # 1 hour = 4 quarter-hourly slots
+        prices = make_quarter_prices([0.9, 0.9, 0.1, 0.1, 0.1, 0.1, 0.9, 0.9])
+        result = find_cheapest_window(prices, window_hours=1.0)
+        assert result['start'].minute == 30
+        assert result['avg_price'] == pytest.approx(0.1)
+
+    def test_span_start_times_are_quarter_hourly(self):
+        span = find_cheap_start_span(make_quarter_prices(self.DIP_THEN_STRETCH))
+        assert span['best']['start'].minute == 0
+        assert (span['best']['end'] - span['best']['start']).total_seconds() == 90 * 60
