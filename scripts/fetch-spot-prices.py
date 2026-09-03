@@ -1,4 +1,5 @@
 import argparse
+import html
 import sys
 import requests
 from datetime import datetime, timedelta
@@ -6,8 +7,14 @@ from zoneinfo import ZoneInfo
 import json
 import os
 import sqlite3
+from dotenv import load_dotenv
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(script_dir, '..'))
+
+from src.notify import send_message
+
+load_dotenv()
 
 MOCK_DATA=f"{script_dir}/../etc/sample-mock.json"
 DATABASE=f"{script_dir}/../database/spot_prices.db"
@@ -15,12 +22,12 @@ TIMEZONE='Europe/Stockholm'
 
 
 def fetch_spot_prices__mock():
+    """Returns (payload, error) — error is None on success."""
     if os.path.exists(MOCK_DATA):
         with open(MOCK_DATA, 'r') as file:
-            return [json.load(file), MOCK_DATA, "Mock data for testing"]
-    else:
-        print(f"Mock file {MOCK_DATA} not found.")
-        return None
+            return [json.load(file), MOCK_DATA, "Mock data for testing"], None
+
+    return None, f"Mock file {MOCK_DATA} not found."
 
 
 def fetch_spot_prices__elprisetjustnu(region=str, spot_price_date=datetime):
@@ -33,13 +40,13 @@ def fetch_spot_prices__elprisetjustnu(region=str, spot_price_date=datetime):
     try:
         response = requests.get(url, timeout=5)  # Set a timeout for the request
         response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
-        return [response.json(), source, source_desc]
+        return [response.json(), source, source_desc], None
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
-        return None
+        return None, str(e)
 
 
 def save_spot_prices(region, source, source_desc, spot_price_json):
+    """Returns None on success, or an error message."""
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -84,12 +91,11 @@ def save_spot_prices(region, source, source_desc, spot_price_json):
         cursor.execute('UPDATE batch SET status = ?, message = ? WHERE id = ?', (1, 'Success', batch_id))
         conn.commit()
 
-        return True
+        return None
 
     except sqlite3.DatabaseError as e:
-        print(f"An error occured: {e}", file=sys.stderr)
         conn.rollback()
-        return False
+        return f"database error: {e}"
 
     finally:
         conn.close()
@@ -115,26 +121,57 @@ def already_stored(region, spot_date):
         conn.close()
 
 
-def main(region, spot_date, mock, skip_if_present=False):
+def alert_failure(region, spot_date, error):
+    """
+    Ping Telegram that a day's prices could not be fetched.
+
+    Only meant for the last attempt of the day — an early failure is usually
+    just a late publication that a later retry will pick up, and an alert you
+    get three times a day is an alert you learn to ignore.
+    """
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    if not token or not chat_id:
+        print("Cannot send alert: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set.",
+              file=sys.stderr)
+        return
+
+    date_str = spot_date.strftime('%Y-%m-%d')
+    text = (f"\u26a0 Spot price fetch failed for {date_str} ({region}).\n"
+            f"{html.escape(str(error))}\n\n"
+            f"Reports covering {date_str} will have no data until it is "
+            f"backfilled with scripts/fetch-spot-prices.py --datediff N")
+
+    if not send_message(token, chat_id, text):
+        print("Failure alert could not be sent to Telegram.", file=sys.stderr)
+
+
+def main(region, spot_date, mock, skip_if_present=False, alert_on_failure=False):
+    """Returns None on success, or an error message."""
     if skip_if_present and not mock and already_stored(region, spot_date):
-        return True
+        return None
 
     if mock == True:
-        result = fetch_spot_prices__mock()
+        result, error = fetch_spot_prices__mock()
     else:
-        result = fetch_spot_prices__elprisetjustnu(region, spot_date)
+        result, error = fetch_spot_prices__elprisetjustnu(region, spot_date)
 
-    if result is None:
-        print("Failed to fetch", file=sys.stderr)
-        return False
+    if error is None:
+        spot_price_json, source, source_desc = result
+        print(f"date: {spot_date.strftime('%Y-%m-%d')}, region: {region}, source: {source}")
+        error = save_spot_prices(region,
+                                 source,
+                                 source_desc,
+                                 spot_price_json)
 
-    spot_price_json, source, source_desc = result
-    print(f"date: {spot_date.strftime('%Y-%m-%d')}, region: {region}, source: {source}")
+    if error is None:
+        return None
 
-    return save_spot_prices(region,
-                            source,
-                            source_desc,
-                            spot_price_json)
+    print(f"Failed to fetch {spot_date.strftime('%Y-%m-%d')}: {error}", file=sys.stderr)
+    if alert_on_failure:
+        alert_failure(region, spot_date, error)
+
+    return error
 
 
 if __name__ == "__main__":
@@ -144,8 +181,11 @@ if __name__ == "__main__":
     parser.add_argument('--mock', action='store_true', help='Use mock data')
     parser.add_argument('--skip-if-present', action='store_true',
                         help='Do nothing if this date is already stored (for retry runs)')
+    parser.add_argument('--alert-on-failure', action='store_true',
+                        help='Send a Telegram ping if the fetch fails (use on the last retry only)')
     args = parser.parse_args()
 
     spot_date = datetime.now(ZoneInfo(TIMEZONE)) + timedelta(days=args.datediff)
-    ok = main(args.region, spot_date, args.mock, args.skip_if_present)
-    sys.exit(0 if ok else 1)
+    error = main(args.region, spot_date, args.mock,
+                 args.skip_if_present, args.alert_on_failure)
+    sys.exit(0 if error is None else 1)

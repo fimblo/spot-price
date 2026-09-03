@@ -21,6 +21,7 @@ python scripts/fetch-spot-prices.py --datediff 0   # today (use this to test rep
 python scripts/fetch-spot-prices.py --mock         # use sample data from etc/sample-mock.json
 python scripts/fetch-spot-prices.py --skip-if-present   # no-op if that date is already stored (retry runs)
 python scripts/fetch-spot-prices.py --datediff -2  # backfill a past day the fetch missed
+python scripts/fetch-spot-prices.py --alert-on-failure   # Telegram ping if it fails (last retry only)
 
 # Run reports manually (reads DB and sends to Telegram)
 python scripts/morning-report.py
@@ -70,7 +71,7 @@ Run `bash scripts/print-crontab.sh` for ready-to-paste lines using absolute path
 ```cron
 00 15 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py
 00 16 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --skip-if-present
-00 18 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --skip-if-present
+00 18 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --skip-if-present --alert-on-failure
 00 07 * * * cd /path/to/spot-price && .venv/bin/python scripts/morning-report.py
 00 19 * * * cd /path/to/spot-price && .venv/bin/python scripts/evening-report.py
 ```
@@ -100,7 +101,7 @@ Copy `.env.example` to `.env`:
 
 **Fetch vs report are separate.** Running `fetch-spot-prices.py` only writes to the database — it sends nothing to Telegram. If a report finds no data, it means the relevant fetch hasn't run yet (`--datediff 0` for today, `--datediff 1` for tomorrow).
 
-**Late publication means a missed day is missed forever — unless a retry runs.** The API 404s for a date it hasn't published yet, and the fetch is single-shot. On 2026-09-01/02/03 the 15:00 run 404'd three days running (the data appeared later), which left a three-day hole in the DB and made the morning report say "No spot price data found". Hence the 16:00/18:00 retry lines. `fetch-spot-prices.py` now exits non-zero on failure, so cron can actually surface it; backfill a past day with a negative `--datediff`.
+**Late publication means a missed day is missed forever — unless a retry runs.** The API 404s for a date it hasn't published yet, and the fetch is single-shot. On 2026-09-01/02/03 the 15:00 run 404'd three days running (the data appeared later), which left a three-day hole in the DB and made the morning report say "No spot price data found". Hence the 16:00/18:00 retry lines. `fetch-spot-prices.py` now exits non-zero on failure, so cron can actually surface it; backfill a past day with a negative `--datediff`. yam has no MTA and no `MAILTO`, so a non-zero exit alone reaches nobody — the 18:00 line carries `--alert-on-failure`, which pings Telegram. Only the *last* retry alerts, deliberately: a 15:00 failure is usually just a late publication that 16:00 or 18:00 will pick up, and an alert that fires on those would be trained away.
 
 **A missing day can hide inside the evening report.** It builds its 12h window from today + tomorrow, so one missing day still leaves enough rows to draw a plausible-looking chart of only half the night — it looks healthy while silently dropping hours. It now compares `coverage_hours()` against `LOOKAHEAD_HOURS` and prepends a warning to the caption when the window is short by more than an hour.
 

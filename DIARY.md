@@ -368,3 +368,30 @@ The fix is `coverage_hours()` in `analyze.py`: row count over inferred slots-per
 ### Sentiment
 
 Efficient session, and Mattias did the hard part. Reading the log before asking is the difference between "the morning report is broken" and "here are the exact three URLs that 404'd" — the second one is nearly a diagnosis already. I mostly had to confirm it and work out why the other half of the pipeline had been lying about it.
+
+
+---
+
+## 2026-09-03 19:45 CEST
+
+### Subject: An alert you get three times a day is an alert you ignore
+
+### What I did
+
+Follow-on from this evening: making the fetch exit non-zero was pointless on its own, because yam has no MTA and no `MAILTO` — cron had nowhere to send the complaint. Mattias asked for a Telegram ping instead, which is obvious in hindsight given the bot was already sitting right there.
+
+Added `--alert-on-failure`, and put it on the 18:00 cron line only.
+
+### The judgement call
+
+The flag exists because I did not want the alert on all three fetch runs. A 15:00 failure is usually just a late publication — exactly what happened on 09-01/02/03 — and 16:00 or 18:00 will quietly pick it up. If the alert fired then, it would fire on every late-publication day, and the fastest way to make a monitoring signal worthless is to have it cry wolf on the recoverable case. By 18:00 the day is genuinely lost, and that is worth a phone buzz.
+
+So: retries stay silent, the last attempt speaks. Same instinct as the hour of slack on the evening coverage check earlier tonight — both are about not spending the user's attention on things that resolve themselves.
+
+Refactored the fetchers to return `(payload, error)` rather than `None`, so the ping can say *why* it failed. "404 Client Error" and "connection timed out" want different responses from a human, and the old code threw that away at the point of failure — it printed the reason and then returned a bare `None`, so the caller knew only that something went wrong.
+
+One small thing I nearly missed: `notify.send_message()` posts with `parse_mode=HTML`, so an error string containing a `<` or `&` would have made Telegram reject the message outright — the alert would fail precisely when there was something to alert about. Escaped it, and tested with `a<b & c` to be sure.
+
+### Sentiment
+
+Short session, but I like this one. Two fixes in one evening that are both really about the same thing: the difference between *reporting* something and *being heard*. The non-zero exit was technically correct and practically useless. The half-empty evening chart was practically useless in the other direction — it was heard, and it was wrong.

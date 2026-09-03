@@ -13,7 +13,7 @@ cat <<EOF
 # Retries, in case the prices were published late. --skip-if-present makes
 # these no-ops once the day is stored, so a normal day still fetches once.
 0 16 * * *  cd "$REPO" && "$PYTHON" scripts/fetch-spot-prices.py --skip-if-present >> logs/fetch.log 2>&1
-0 18 * * *  cd "$REPO" && "$PYTHON" scripts/fetch-spot-prices.py --skip-if-present >> logs/fetch.log 2>&1
+0 18 * * *  cd "$REPO" && "$PYTHON" scripts/fetch-spot-prices.py --skip-if-present --alert-on-failure >> logs/fetch.log 2>&1
 
 # Morning report: today's prices + cheapest daytime window
 0  7 * * *  cd "$REPO" && "$PYTHON" scripts/morning-report.py >> logs/morning.log 2>&1
