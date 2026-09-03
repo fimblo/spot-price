@@ -39,6 +39,22 @@ def _slots_per_hour(sorted_prices: list[dict]) -> float:
     return 60 / minutes
 
 
+def coverage_hours(prices: list[dict]) -> float:
+    """
+    How many wall-clock hours these slots actually cover.
+
+    Rows are equal-duration slots, so this is simply the row count divided by
+    the inferred slots-per-hour. Lets a caller tell a full window from one that
+    is only half-populated — a report that charts whatever rows it found will
+    otherwise render a partial window as though it were a normal one.
+    """
+    if not prices:
+        return 0.0
+
+    sorted_prices = sorted(prices, key=lambda p: p['time_start'])
+    return len(sorted_prices) / _slots_per_hour(sorted_prices)
+
+
 def _windows(prices: list[dict], window_hours: float) -> list[dict]:
     """
     Average price of every window of window_hours that fits in prices.

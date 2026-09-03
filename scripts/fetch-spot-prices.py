@@ -1,4 +1,5 @@
 import argparse
+import sys
 import requests
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -83,30 +84,57 @@ def save_spot_prices(region, source, source_desc, spot_price_json):
         cursor.execute('UPDATE batch SET status = ?, message = ? WHERE id = ?', (1, 'Success', batch_id))
         conn.commit()
 
+        return True
+
     except sqlite3.DatabaseError as e:
-        print(f"An error occured: {e}")
+        print(f"An error occured: {e}", file=sys.stderr)
         conn.rollback()
+        return False
 
     finally:
         conn.close()
 
 
-def main(region, spot_date, mock):
+def already_stored(region, spot_date):
+    """True if this date/region already has rows — lets a retry run no-op."""
+    if not os.path.exists(DATABASE):
+        return False
+
+    conn = sqlite3.connect(DATABASE)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+                SELECT COUNT(*) FROM spot_price
+                WHERE substr(time_start, 1, 10) = ? AND region = ?
+            """,
+            (spot_date.strftime('%Y-%m-%d'), region)
+        )
+        return cursor.fetchone()[0] > 0
+    finally:
+        conn.close()
+
+
+def main(region, spot_date, mock, skip_if_present=False):
+    if skip_if_present and not mock and already_stored(region, spot_date):
+        return True
+
     if mock == True:
         result = fetch_spot_prices__mock()
     else:
         result = fetch_spot_prices__elprisetjustnu(region, spot_date)
 
     if result is None:
-        print("Failed to fetch")
-    else:
-        spot_price_json, source, source_desc = result
-        print(f"date: {spot_date.strftime('%Y-%m-%d')}, region: {region}, source: {source}")
+        print("Failed to fetch", file=sys.stderr)
+        return False
 
-        save_spot_prices(region,
-                        source,
-                        source_desc,
-                        spot_price_json)
+    spot_price_json, source, source_desc = result
+    print(f"date: {spot_date.strftime('%Y-%m-%d')}, region: {region}, source: {source}")
+
+    return save_spot_prices(region,
+                            source,
+                            source_desc,
+                            spot_price_json)
 
 
 if __name__ == "__main__":
@@ -114,7 +142,10 @@ if __name__ == "__main__":
     parser.add_argument('--region', type=str, default='SE4', help='Region code')
     parser.add_argument('--datediff', type=int, default=1, help='0=today, 1=tomorrow, etc')
     parser.add_argument('--mock', action='store_true', help='Use mock data')
+    parser.add_argument('--skip-if-present', action='store_true',
+                        help='Do nothing if this date is already stored (for retry runs)')
     args = parser.parse_args()
 
     spot_date = datetime.now(ZoneInfo(TIMEZONE)) + timedelta(days=args.datediff)
-    main(args.region, spot_date, args.mock)
+    ok = main(args.region, spot_date, args.mock, args.skip_if_present)
+    sys.exit(0 if ok else 1)

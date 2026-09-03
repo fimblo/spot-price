@@ -328,3 +328,43 @@ Sobering. This shipped silently: no crash, no empty chart, no error in the logs 
 
 A note on process: I nearly generated fake 15-minute data to test with. Mattias stopped me and said fetch the real thing. If I had synthesised it I would have written a generator that produced 96 rows and confirmed the chart handled them — and I would very likely have missed this entirely, because I would have been testing the chart, which was fine, rather than feeding real rows through the whole pipeline.
 
+
+
+---
+
+## 2026-09-03 19:20 CEST
+
+### Subject: Three days of 404s, and the same lesson as last time
+
+### What I did
+
+Mattias reported the morning report on yam saying "No spot price data found for 2026-09-02", while the evening runs "seem to still work". He'd already tailed `fetch.log` and found the answer before I got there: three consecutive 404s from elprisetjustnu for 09-01, 09-02 and 09-03, then a clean success for 09-04.
+
+yam's DB had a matching three-day hole — zero rows for each, 96 for every day either side. The `batch` table skipped straight from `2026-08-30 15:00` to `2026-09-03 15:00`.
+
+The 404s were transient. I re-probed the API and all three dates return 200 with 96 rows now; the prices were simply published later than 15:00 on those days. So the morning report was never broken — it was correctly reporting an empty cupboard. The bug is upstream: the fetch is single-shot, cron only ever runs it with `--datediff 1`, and nothing retries or backfills. One late publication and that day is gone permanently.
+
+Backfilled the three days with negative `--datediff` (the insert is an idempotent upsert, so this was cheap and safe), then shipped three fixes: retry runs at 16:00 and 18:00 guarded by a new `--skip-if-present` flag so normal days still fetch exactly once; a non-zero exit on fetch failure, because the old code printed "Failed to fetch" and exited 0, which is why cron never said a word; and a coverage check in the evening report.
+
+### The interesting part
+
+"The evening runs seem to still work" turned out to be the most informative sentence in the report, because it wasn't true — it was just well disguised.
+
+The evening report builds its 12h window from today + tomorrow. With today missing, tomorrow's rows alone still populate part of the window, so `upcoming` is non-empty and everything downstream succeeds. I replayed the window logic against the real DB, which is the only reason I trust this:
+
+```
+2026-08-31 19:00  today=96  tomorrow= 0  in-window=20/48  covers 19:00 -> 23:45
+2026-09-01 19:00  today= 0  tomorrow= 0  in-window= 0/48  covers none
+2026-09-02 19:00  today= 0  tomorrow= 0  in-window= 0/48  covers none
+2026-09-03 19:00  today= 0  tomorrow=96  in-window=28/48  covers 00:00 -> 06:45
+```
+
+Two of those evenings did fail loudly. But tonight's — the one that looked fine — charted only 00:00 to 06:45 and silently dropped this evening's five hours. A half-empty window rendered as a normal-looking chart with a confident caption.
+
+Which is precisely what I wrote in this diary three days ago about the quarter-hourly bug: *the failure modes which survive longest are the ones that still look like an answer.* I did not expect to be handed the same lesson again so quickly, in a different part of the same pipeline. Worth asking, next time I add anything that stitches data from two sources, what it does when one source is absent — the answer is rarely "error", and that's the problem.
+
+The fix is `coverage_hours()` in `analyze.py`: row count over inferred slots-per-hour, compared against `LOOKAHEAD_HOURS`. One hour of slack, because cron firing at 19:00:02 makes the `now <= time_start` filter drop the first slot and I didn't want a false alarm every single day. Short by more than that and a warning goes at the top of the caption. It still sends the chart — partial information is useful, it just shouldn't pass as complete.
+
+### Sentiment
+
+Efficient session, and Mattias did the hard part. Reading the log before asking is the difference between "the morning report is broken" and "here are the exact three URLs that 404'd" — the second one is nearly a diagnosis already. I mostly had to confirm it and work out why the other half of the pipeline had been lying about it.

@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from src.analyze import find_cheapest_window, find_cheap_start_span
+from src.analyze import find_cheapest_window, find_cheap_start_span, coverage_hours
 
 
 def make_prices(values_sek, start_hour=0, date='2025-02-25'):
@@ -214,3 +214,32 @@ class TestQuarterHourlyResolution:
         span = find_cheap_start_span(make_quarter_prices(self.DIP_THEN_STRETCH))
         assert span['best']['start'].minute == 0
         assert (span['best']['end'] - span['best']['start']).total_seconds() == 90 * 60
+
+
+class TestCoverageHours:
+    """
+    The evening report stitches its 12h window from two days, so a missing day
+    still leaves enough rows to draw a chart of only half the night. These
+    cover the arithmetic that lets it notice.
+    """
+
+    def test_empty_list_covers_nothing(self):
+        assert coverage_hours([]) == 0.0
+
+    def test_hourly_rows_count_as_one_hour_each(self):
+        assert coverage_hours(make_prices([0.1] * 12)) == 12.0
+
+    def test_quarter_hourly_rows_count_as_a_quarter_each(self):
+        assert coverage_hours(make_quarter_prices([0.1] * 48)) == 12.0
+
+    def test_half_populated_window_falls_short(self):
+        # 28 quarter-hourly rows = the 00:00-07:00 stretch the evening report
+        # was charting on 2026-09-03 while today's prices were missing
+        assert coverage_hours(make_quarter_prices([0.1] * 28)) == 7.0
+
+    def test_single_row_does_not_divide_by_zero(self):
+        assert coverage_hours(make_prices([0.1])) == 1.0
+
+    def test_unordered_input_is_sorted_first(self):
+        prices = make_quarter_prices([0.1] * 8)
+        assert coverage_hours(list(reversed(prices))) == 2.0
