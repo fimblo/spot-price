@@ -72,6 +72,7 @@ Run `bash scripts/print-crontab.sh` for ready-to-paste lines using absolute path
 00 15 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py
 00 16 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --skip-if-present
 00 18 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --skip-if-present --alert-on-failure
+30 06 * * * cd /path/to/spot-price && .venv/bin/python scripts/fetch-spot-prices.py --datediff 0 --skip-if-present --alert-on-failure
 00 07 * * * cd /path/to/spot-price && .venv/bin/python scripts/morning-report.py
 00 19 * * * cd /path/to/spot-price && .venv/bin/python scripts/evening-report.py
 ```
@@ -79,6 +80,11 @@ Run `bash scripts/print-crontab.sh` for ready-to-paste lines using absolute path
 The 16:00 and 18:00 lines are retries for days where elprisetjustnu publishes
 late. `--skip-if-present` makes them no-ops once the day is stored, so a normal
 day still fetches exactly once.
+
+The 06:30 line is the one that catches a *really* late publication. Every other
+fetch line asks for **tomorrow**, so their last attempt is 18:00 the day before;
+a day that appeared after that would never be fetched at all. This line asks for
+**today**, half an hour before the morning report reads the DB.
 
 ## Diary
 
@@ -101,7 +107,9 @@ Copy `.env.example` to `.env`:
 
 **Fetch vs report are separate.** Running `fetch-spot-prices.py` only writes to the database — it sends nothing to Telegram. If a report finds no data, it means the relevant fetch hasn't run yet (`--datediff 0` for today, `--datediff 1` for tomorrow).
 
-**Late publication means a missed day is missed forever — unless a retry runs.** The API 404s for a date it hasn't published yet, and the fetch is single-shot. On 2026-09-01/02/03 the 15:00 run 404'd three days running (the data appeared later), which left a three-day hole in the DB and made the morning report say "No spot price data found". Hence the 16:00/18:00 retry lines. `fetch-spot-prices.py` now exits non-zero on failure, so cron can actually surface it; backfill a past day with a negative `--datediff`. yam has no MTA and no `MAILTO`, so a non-zero exit alone reaches nobody — the 18:00 line carries `--alert-on-failure`, which pings Telegram. Only the *last* retry alerts, deliberately: a 15:00 failure is usually just a late publication that 16:00 or 18:00 will pick up, and an alert that fires on those would be trained away.
+**Late publication means a missed day is missed forever — unless a retry runs.** The API 404s for a date it hasn't published yet, and the fetch is single-shot. On 2026-09-01/02/03 the 15:00 run 404'd three days running (the data appeared later), which left a three-day hole in the DB and made the morning report say "No spot price data found". Hence the 16:00/18:00 retry lines. `fetch-spot-prices.py` now exits non-zero on failure, so cron can actually surface it; backfill a past day with a negative `--datediff`. yam has no MTA and no `MAILTO`, so a non-zero exit alone reaches nobody — the 18:00 line carries `--alert-on-failure`, which pings Telegram. A 15:00 or 16:00 failure stays silent, deliberately: it is usually just a late publication that a later retry picks up, and an alert that fires on those would be trained away.
+
+**All the "tomorrow" retries in the world don't help if the data lands after 18:00.** This is the failure the 16:00/18:00 lines did *not* fix, and it bit again on 2026-09-09. Every fetch line above runs with the default `--datediff 1`, so the last attempt at day D's data happens at 18:00 on D−1; when D arrives, the 15:00 run asks for D+1 and nobody ever goes back for D. On 2026-09-08 all three attempts at 09-09 404'd, and the next morning's report had nothing to draw — even though the API served 09-09 perfectly well by then. The 06:30 `--datediff 0 --skip-if-present` line closes that window: it is the only fetch that asks for *today*, and it runs 30 minutes before the morning report. When diagnosing a hole in the DB, check the *publication* timing, not the local machine — a 404 is the remote API's answer, and it will not be explained by a reboot or an apt upgrade.
 
 **A missing day can hide inside the evening report.** It builds its 12h window from today + tomorrow, so one missing day still leaves enough rows to draw a plausible-looking chart of only half the night — it looks healthy while silently dropping hours. It now compares `coverage_hours()` against `LOOKAHEAD_HOURS` and prepends a warning to the caption when the window is short by more than an hour.
 

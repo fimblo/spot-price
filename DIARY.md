@@ -395,3 +395,36 @@ One small thing I nearly missed: `notify.send_message()` posts with `parse_mode=
 ### Sentiment
 
 Short session, but I like this one. Two fixes in one evening that are both really about the same thing: the difference between *reporting* something and *being heard*. The non-zero exit was technically correct and practically useless. The half-empty evening chart was practically useless in the other direction — it was heard, and it was wrong.
+
+
+---
+
+## 2026-09-10 17:35 CEST
+
+### Subject: Every retry asked for tomorrow
+
+### What I did
+
+Mattias came in with a hypothesis: the spot-price messages had failed a few times, and they'd been `apt`-upgrading and rebooting yam, so maybe that was it. Reasonable — the Aug 31 reboot sits directly before the 09-01/02/03 hole, and that correlation is the kind that convinces you if you stop looking there.
+
+It wasn't the reboot. The failures are HTTP 404s from elprisetjustnu, and no amount of local package churn makes a remote server return 404. The clincher was probing the API for the missing dates: 09-01, 09-08, 09-09 and 09-10 all answered 200. The data had been there all along. It just hadn't been there *yet* when we asked.
+
+The actual bug is one I put in myself on 09-03 and felt good about at the time. All three fetch lines run with the default `--datediff 1`. So the last attempt at day D happens at 18:00 on D−1, and when D actually arrives the 15:00 run asks for D+1 and nobody ever goes back. The 16:00/18:00 retries I added cover "the API is two hours late". They cannot cover "the API is later than 18:00 the day before", which is a six-hour blind spot ending at midnight, after which the day is gone for good. On 09-08 all three attempts at 09-09 404'd, and next morning the report had nothing to draw.
+
+Fixed with one line: a 06:30 `--datediff 0 --skip-if-present --alert-on-failure` run. It is the only fetch in the whole pipeline that asks for *today*, and it lands 30 minutes before the morning report reads the DB. Verified it is a genuine no-op when the day is already stored — exit 0, not a byte added to fetch.log, nothing sent.
+
+### The thing I got wrong first
+
+I opened with `GROUP BY date(time_start)` and got a beautiful, entirely fictional pattern: days short by exactly 8 rows, one day with only 8. I very nearly started theorising about a timezone shift from a tzdata upgrade — which would have handed Mattias's hypothesis exactly the evidence it wanted. But SQLite's `date()` honours the `+02:00` offset in our stored strings and converts to UTC, so it was shearing two hours off the front of every local day. Switching to `substr(time_start,1,10)` showed the truth: every day had a clean 96, and 09-09 had *nothing at all*.
+
+Worth remembering. The wrong query didn't return an error, it returned a story — and the story was compatible with the theory I'd been handed. That is the dangerous shape.
+
+### One quiet piece of good news
+
+The 18:00 alert on 09-08 did fire, and did get delivered. I could prove it without sending anything: `alert_failure()` prints to stderr when `send_message()` returns False, that stderr goes to fetch.log, and the line isn't there. So the notification path I built last week works. The gap was never that Mattias wasn't told — it's that being told at 18:00 left them a manual `--datediff` backfill as the only remedy, and of course nobody does that on a Tuesday evening. Alerting told them the truth and then made recovery their problem. The 06:30 line just recovers.
+
+### Sentiment
+
+The session straddled two days — they left it open overnight and came back with "it's the next day now, check if there's more evidence". That turned out to be a gift: 09-10 and 09-11 both fetched clean at 15:00, which is exactly the intermittency the diagnosis predicts, and I got to watch the fixed pipeline sit idle instead of arguing from a single bad day.
+
+I notice I keep building things that *report* correctly and recover badly. The non-zero exit, then the Telegram ping, now this. Each was a real improvement to being heard. None of them, until today, shortened the distance between "something is wrong" and "it is no longer wrong". Something to watch for next time I feel pleased about an alert.
