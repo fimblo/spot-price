@@ -3,14 +3,22 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from typing import Optional
 
-# (threshold in öre, hex colour)
+# (exclusive upper bound in öre, hex colour) — same bands as analyze.py.
+# Blue plus the ColorBrewer RdYlGn ramp, so "how bad" reads as "how dark and
+# hot"; the top band breaks to violet (as the UV index does for "extreme") so a
+# spike looks different in kind, not just a shade darker. The violet is kept
+# mid-dark so it still separates from the night theme's #1a1a19 ground.
 _COLOR_THRESHOLDS = [
-    (30,  '#27ae60'),   # green      — dirt cheap
-    (70,  '#a8d86e'),   # light green — cheap
-    (100, '#f1c40f'),   # yellow     — acceptable
-    (130, '#e67e22'),   # orange     — expensive
+    (0,   '#2b83ba'),   # blue        — almost free
+    (30,  '#1a9850'),   # deep green  — dirt cheap
+    (70,  '#91cf60'),   # fresh green — cheap
+    (100, '#fee08b'),   # pale yellow — acceptable
+    (150, '#fdae61'),   # apricot     — pricey
+    (225, '#f46d43'),   # orange-red  — expensive
+    (325, '#d73027'),   # red         — painful
+    (450, '#a50026'),   # crimson     — brutal
 ]
-_COLOR_PAINFUL = '#e74c3c'   # red
+_COLOR_TOP = '#7b2d8e'  # violet      — daylight robbery
 
 # Chart chrome per report — lets a day (morning) and night (evening) chart be
 # told apart at a glance even as a bare thumbnail. Surface/ink values are the
@@ -69,7 +77,7 @@ def price_color(price_sek: float) -> str:
     for threshold, color in _COLOR_THRESHOLDS:
         if ore < threshold:
             return color
-    return _COLOR_PAINFUL
+    return _COLOR_TOP
 
 
 def _anchor_timestamp(prices: list[dict], theme: str) -> Optional[str]:

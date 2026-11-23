@@ -67,41 +67,39 @@ class TestFindCheapestWindow:
 
 
 class TestPriceLabel:
-    def test_dirt_cheap(self):
-        from src.analyze import price_label
-        assert price_label(0.15) == 'dirt cheap'   # 15 öre
+    # One representative price per band, plus every boundary (lower bound is
+    # inclusive: exactly 30 öre is 'cheap', not 'dirt cheap').
+    BANDS = [
+        (-0.10, 'almost free'),
+        (0.15, 'dirt cheap'),
+        (0.50, 'cheap'),
+        (0.85, 'acceptable'),
+        (1.20, 'pricey'),
+        (1.90, 'expensive'),
+        (2.70, 'painful'),
+        (3.80, 'brutal'),
+        (7.00, 'daylight robbery'),
+    ]
+    BOUNDARIES = [
+        (0.00, 'dirt cheap'),
+        (0.30, 'cheap'),
+        (0.70, 'acceptable'),
+        (1.00, 'pricey'),
+        (1.50, 'expensive'),
+        (2.25, 'painful'),
+        (3.25, 'brutal'),
+        (4.50, 'daylight robbery'),
+    ]
 
-    def test_cheap(self):
+    @pytest.mark.parametrize('price,label', BANDS)
+    def test_band(self, price, label):
         from src.analyze import price_label
-        assert price_label(0.50) == 'cheap'         # 50 öre
+        assert price_label(price) == label
 
-    def test_acceptable(self):
+    @pytest.mark.parametrize('price,label', BOUNDARIES)
+    def test_boundary_belongs_to_upper_band(self, price, label):
         from src.analyze import price_label
-        assert price_label(0.85) == 'acceptable'    # 85 öre
-
-    def test_expensive(self):
-        from src.analyze import price_label
-        assert price_label(1.15) == 'expensive'     # 115 öre
-
-    def test_painful(self):
-        from src.analyze import price_label
-        assert price_label(1.50) == 'painful'       # 150 öre
-
-    def test_boundary_30_ore_is_cheap_not_dirt_cheap(self):
-        from src.analyze import price_label
-        assert price_label(0.30) == 'cheap'
-
-    def test_boundary_70_ore_is_acceptable_not_cheap(self):
-        from src.analyze import price_label
-        assert price_label(0.70) == 'acceptable'
-
-    def test_boundary_exactly_1kr_is_expensive(self):
-        from src.analyze import price_label
-        assert price_label(1.00) == 'expensive'
-
-    def test_boundary_exactly_130_ore_is_painful(self):
-        from src.analyze import price_label
-        assert price_label(1.30) == 'painful'
+        assert price_label(price) == label
 
 
 class TestFindCheapStartSpan:
@@ -156,7 +154,7 @@ class TestFindCheapStartSpan:
 
     def test_label_reflects_best_zone_even_when_overall_expensive(self):
         # Everything painful: best is still painful, span covers all start times.
-        prices = make_prices([1.40, 1.50, 1.45, 1.55])
+        prices = make_prices([2.40, 2.50, 2.45, 2.55])
         span = find_cheap_start_span(prices)
         assert span['label'] == 'painful'
         assert span['earliest_start'].hour == 0

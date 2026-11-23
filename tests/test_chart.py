@@ -49,30 +49,33 @@ class TestGeneratePriceChart:
 
 
 class TestPriceColor:
-    def test_dirt_cheap_is_green(self):
-        from src.chart import price_color
-        assert price_color(0.15) == '#27ae60'
+    BANDS = [
+        (-0.10, '#2b83ba'),   # almost free
+        (0.15, '#1a9850'),    # dirt cheap
+        (0.50, '#91cf60'),    # cheap
+        (0.85, '#fee08b'),    # acceptable
+        (1.20, '#fdae61'),    # pricey
+        (1.90, '#f46d43'),    # expensive
+        (2.70, '#d73027'),    # painful
+        (3.80, '#a50026'),    # brutal
+        (7.00, '#7b2d8e'),    # daylight robbery
+    ]
 
-    def test_cheap_is_light_green(self):
+    @pytest.mark.parametrize('price,color', BANDS)
+    def test_band(self, price, color):
         from src.chart import price_color
-        assert price_color(0.50) == '#a8d86e'
+        assert price_color(price) == color
 
-    def test_acceptable_is_yellow(self):
+    def test_boundary_30_ore_is_cheap_colour(self):
         from src.chart import price_color
-        assert price_color(0.85) == '#f1c40f'
+        assert price_color(0.30) == '#91cf60'
 
-    def test_expensive_is_orange(self):
+    def test_boundary_450_ore_is_top_colour(self):
         from src.chart import price_color
-        assert price_color(1.15) == '#e67e22'
+        assert price_color(4.50) == '#7b2d8e'
 
-    def test_painful_is_red(self):
-        from src.chart import price_color
-        assert price_color(1.50) == '#e74c3c'
-
-    def test_boundary_30_ore_is_light_green(self):
-        from src.chart import price_color
-        assert price_color(0.30) == '#a8d86e'
-
-    def test_boundary_130_ore_is_red(self):
-        from src.chart import price_color
-        assert price_color(1.30) == '#e74c3c'
+    def test_bands_match_labels(self):
+        # Colour and label bands are defined separately; they must not drift.
+        from src.analyze import _PRICE_THRESHOLDS
+        from src.chart import _COLOR_THRESHOLDS
+        assert [t for t, _ in _PRICE_THRESHOLDS] == [t for t, _ in _COLOR_THRESHOLDS]

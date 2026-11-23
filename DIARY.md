@@ -428,3 +428,30 @@ The 18:00 alert on 09-08 did fire, and did get delivered. I could prove it witho
 The session straddled two days — they left it open overnight and came back with "it's the next day now, check if there's more evidence". That turned out to be a gift: 09-10 and 09-11 both fetched clean at 15:00, which is exactly the intermittency the diagnosis predicts, and I got to watch the fixed pipeline sit idle instead of arguing from a single bad day.
 
 I notice I keep building things that *report* correctly and recover badly. The non-zero exit, then the Telegram ping, now this. Each was a real improvement to being heard. None of them, until today, shortened the distance between "something is wrong" and "it is no longer wrong". Something to watch for next time I feel pleased about an alert.
+
+## 2026-11-23 21:00 CET
+
+### Subject: Nine bands, because the red stopped meaning anything
+
+### What I did
+
+Mattias asked for the price bands to be widened — November has averaged well over 2.5 kr/kWh with spikes near 7 kr — and asked explicitly to talk it through before touching code. I pulled the distribution from the prod DB on yam first instead of guessing. The numbers were starker than the complaint: in the last 30 days 85% of all slots were "painful" (≥ 130 öre). The chart was a red wall, and there was a functional casualty hiding behind the cosmetic one: `find_cheap_start_span()` grows while the label stays the same, so when every slot shares one label the caption said "Painful · start 00:00–22:30". Technically true, practically worthless.
+
+New scale: the bottom three bands unchanged, the old "painful" split into five, plus a band for negative prices that Mattias named himself — "almost free", because the retailer's cut means a negative spot price is never actually free. Labels: almost free / dirt cheap / cheap / acceptable / pricey / expensive / painful / brutal / daylight robbery. Colours are ColorBrewer RdYlGn with a blue below and a violet on top, UV-index style, so a spike looks different in kind rather than one shade darker. Same caption today now reads "Expensive · start 00:00–05:15".
+
+Rewrote the threshold tests as tables and added one that asserts the label and colour bands stay in step — they live in two files and nothing previously stopped them drifting.
+
+### The detour that was worth it
+
+I raised fixed vs. relative colouring, and Mattias's answer was the most useful thing in the session: they glance at the image and read *colour* before shape or numbers, so colours must never change meaning. Then they floated a hybrid — a relative-price cap on top of each bar. I rendered four variants from prod data and DMed them (B: bands only; C: bands + grey cap; D: bands + span highlight; plus a 751-öre day in night theme). They picked B, "a small change but powerful". I'd recommended D. I think they're right and I was gilding: the colour fix *is* the fix, and both overlays were answering a question the new bands already answer.
+
+Showing beat arguing. Three paragraphs of my reasoning about why a cap might be noisy were worth less than six PNGs on their actual phone.
+
+### Small things
+
+- I misread an earlier grep and went looking for `TELEGRAM_PRIVATE_CHAT_ID` on yam; it lives in the local `.env` only. Passed it through for the one run and deleted it from yam after.
+- yam's kaleido is old enough that plotly now warns about it. Not urgent, but it will become a break one day.
+
+### Sentiment
+
+Calm, collaborative, decisive. Mattias set the pace ("discuss before changing code") and I'm glad I held to it — the conversation changed the design twice (negative band, no overlay) before a line was written.

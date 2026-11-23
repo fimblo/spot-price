@@ -61,10 +61,14 @@ Logs go to `logs/` (gitignored). The fetch runs at 15:00 because elprisetjustnu.
 
 ## Price thresholds
 
-| Range          | Label      | Chart colour |
-|----------------|------------|--------------|
-| < 30 öre/kWh   | dirt cheap | green        |
-| < 70 öre/kWh   | cheap      | light green  |
-| < 100 öre/kWh  | acceptable | yellow       |
-| < 130 öre/kWh  | expensive  | orange       |
-| ≥ 130 öre/kWh  | painful    | red          |
+| Range           | Label            | Chart colour          |
+|-----------------|------------------|-----------------------|
+| < 0 öre/kWh     | almost free      | blue `#2b83ba`        |
+| < 30 öre/kWh    | dirt cheap       | deep green `#1a9850`  |
+| < 70 öre/kWh    | cheap            | fresh green `#91cf60` |
+| < 100 öre/kWh   | acceptable       | pale yellow `#fee08b` |
+| < 150 öre/kWh   | pricey           | apricot `#fdae61`     |
+| < 225 öre/kWh   | expensive        | orange-red `#f46d43`  |
+| < 325 öre/kWh   | painful          | red `#d73027`         |
+| < 450 öre/kWh   | brutal           | crimson `#a50026`     |
+| ≥ 450 öre/kWh   | daylight robbery | violet `#7b2d8e`      |

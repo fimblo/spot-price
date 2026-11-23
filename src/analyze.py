@@ -1,13 +1,21 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-# (threshold in öre, label)
+# (exclusive upper bound in öre, label). The user's own mental model — see the
+# table in CLAUDE.md. Widened in Nov 2026 when prices of 2–4 kr became normal and
+# the old top band ("painful", ≥ 130) swallowed 85% of slots, which made both the
+# chart a wall of red and the caption's "start any time" span cover the whole day.
 _PRICE_THRESHOLDS = [
+    (0,   'almost free'),   # negative spot price; the retailer's cut still applies
     (30,  'dirt cheap'),
     (70,  'cheap'),
     (100, 'acceptable'),
-    (130, 'expensive'),
+    (150, 'pricey'),
+    (225, 'expensive'),
+    (325, 'painful'),
+    (450, 'brutal'),
 ]
+_PRICE_TOP_LABEL = 'daylight robbery'
 
 
 def price_label(price_sek: float) -> str:
@@ -16,7 +24,7 @@ def price_label(price_sek: float) -> str:
     for threshold, label in _PRICE_THRESHOLDS:
         if ore < threshold:
             return label
-    return 'painful'
+    return _PRICE_TOP_LABEL
 
 
 def _slots_per_hour(sorted_prices: list[dict]) -> float:

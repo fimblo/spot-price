@@ -43,7 +43,7 @@ Two-stage daily pipeline:
 2. **Report** (cron 07:00 and 19:00): reads DB, finds cheapest window, generates chart PNG, sends Telegram message
 
 Source modules in `src/`:
-- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `find_cheap_start_span()`: same sliding window, but also returns the contiguous span of start times whose window-average shares the cheapest's price label (used by both reports so a text-only lock-screen notification doesn't mislead the reader into waiting for the single cheapest minute when a wider window is just as good); `format_window_message()`: renders a `find_cheap_start_span()` result as the caption both reports send; `price_label()`: categorises a price as "dirt cheap" / "cheap" / "acceptable" / "expensive" / "painful"
+- `analyze.py` — `find_cheapest_window()`: sliding-window weighted average to find cheapest N-hour window; `find_cheap_start_span()`: same sliding window, but also returns the contiguous span of start times whose window-average shares the cheapest's price label (used by both reports so a text-only lock-screen notification doesn't mislead the reader into waiting for the single cheapest minute when a wider window is just as good); `format_window_message()`: renders a `find_cheap_start_span()` result as the caption both reports send; `price_label()`: categorises a price into one of nine bands, "almost free" through "daylight robbery"
 - `chart.py` — `generate_price_chart()`: plotly bar chart, colour-coded by absolute price thresholds
 - `notify.py` — `send_message()` / `send_photo()`: thin wrappers over Telegram Bot API
 - `db.py` — `get_prices()`: SQLite access; `create_tables()` used by tests for in-memory DBs
@@ -56,13 +56,19 @@ Morning report covers the rest of today, from the current hour onward. Evening r
 
 The user's own mental model, encoded in `src/analyze.py` and `src/chart.py`. Don't change without checking with them.
 
-| Range          | Label       | Chart colour |
-|----------------|-------------|--------------|
-| < 30 öre/kWh   | dirt cheap  | green        |
-| < 70 öre/kWh   | cheap       | light green  |
-| < 100 öre/kWh  | acceptable  | yellow       |
-| < 130 öre/kWh  | expensive   | orange       |
-| ≥ 130 öre/kWh  | painful     | red          |
+Widened from five bands to nine in Nov 2026, when 2–4 kr/kWh became normal: under the old scale 85% of a month's slots were "painful", so the chart was solid red and the caption's span degenerated to "start any time today". The bottom three bands were kept as they were. Colours are fixed on purpose — the user reads the chart by colour at a glance before looking at shape or numbers, so a colour must always mean the same price. `tests/test_chart.py` checks the label and colour bands stay in step.
+
+| Range           | Label            | Chart colour          |
+|-----------------|------------------|-----------------------|
+| < 0 öre/kWh     | almost free      | blue `#2b83ba`        |
+| < 30 öre/kWh    | dirt cheap       | deep green `#1a9850`  |
+| < 70 öre/kWh    | cheap            | fresh green `#91cf60` |
+| < 100 öre/kWh   | acceptable       | pale yellow `#fee08b` |
+| < 150 öre/kWh   | pricey           | apricot `#fdae61`     |
+| < 225 öre/kWh   | expensive        | orange-red `#f46d43`  |
+| < 325 öre/kWh   | painful          | red `#d73027`         |
+| < 450 öre/kWh   | brutal           | crimson `#a50026`     |
+| ≥ 450 öre/kWh   | daylight robbery | violet `#7b2d8e`      |
 
 ## Cron example
 
