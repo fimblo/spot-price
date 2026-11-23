@@ -2,14 +2,18 @@
 """
 Evening report — run at 19:00 local time.
 
-Sends the next 12 hours of spot prices as a colour-coded chart, plus the
-cheapest 1.5-hour window in that span (good for starting laundry or dishes
-overnight) — same format as the morning report, just centred on the
-evening-to-morning stretch instead of the rest of today.
+Sends spot prices from now through 14:00 tomorrow as a colour-coded chart,
+plus the cheapest 1.5-hour window in that span (good for starting laundry or
+dishes overnight, or knowing it pays to wait until tomorrow's midday dip) —
+same format as the morning report, just centred on the evening-to-next-day
+stretch instead of the rest of today.
+
+14:00 is roughly where the next fetch takes over: tomorrow's prices are stored
+by the 15:00 run, and the next evening report picks up from 19:00 again.
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
@@ -24,7 +28,7 @@ load_dotenv()
 
 TIMEZONE = 'Europe/Stockholm'
 REGION = 'SE4'
-LOOKAHEAD_HOURS = 12   # how far past "now" the chart/search window extends
+WINDOW_END = time(14, 0)  # chart/search window runs until this time tomorrow
 COVERAGE_SLACK_HOURS = 1  # tolerated shortfall before the window counts as gappy
 
 
@@ -39,7 +43,8 @@ def main():
     now = datetime.now(tz)
     today = now.date()
     tomorrow = today + timedelta(days=1)
-    window_end = now + timedelta(hours=LOOKAHEAD_HOURS)
+    window_end = datetime.combine(tomorrow, WINDOW_END, tzinfo=tz)
+    window_label = WINDOW_END.strftime('%H:%M')
 
     all_prices = get_prices(today, REGION) + get_prices(tomorrow, REGION)
     if not all_prices:
@@ -48,14 +53,14 @@ def main():
                      f"Did the fetch script run today?")
         return
 
-    # Chart/search window: from now through the next LOOKAHEAD_HOURS hours,
-    # spanning midnight into tomorrow's early-morning prices.
+    # Chart/search window: from now through WINDOW_END tomorrow, spanning
+    # midnight. If the data stops earlier, the chart simply ends earlier.
     upcoming = [p for p in all_prices
                 if now <= datetime.fromisoformat(p['time_start']) < window_end]
 
     if not upcoming:
         send_message(token, chat_id,
-                     f"Could not find price data for the next {LOOKAHEAD_HOURS}h.\n"
+                     f"Could not find price data between now and {window_label} tomorrow.\n"
                      f"Has tomorrow's fetch run? (scripts/fetch-spot-prices.py --datediff 1)")
         return
 
@@ -65,12 +70,13 @@ def main():
     # enough rows to draw a plausible-looking chart of only half the night.
     # Say so rather than letting a partial window pass as a normal one.
     covered = coverage_hours(upcoming)
-    shortfall = LOOKAHEAD_HOURS - covered
+    expected = (window_end - now).total_seconds() / 3600
+    shortfall = expected - covered
     warning = None
     if shortfall > COVERAGE_SLACK_HOURS:
         first = datetime.fromisoformat(upcoming[0]['time_start']).strftime('%H:%M')
         last = datetime.fromisoformat(upcoming[-1]['time_end']).strftime('%H:%M')
-        warning = (f"\u26a0 Only {covered:.1f}h of the next {LOOKAHEAD_HOURS}h have prices "
+        warning = (f"\u26a0 Only {covered:.1f}h of the {expected:.0f}h until {window_label} have prices "
                    f"({first}\u2013{last}) \u2014 a fetch has failed.")
 
     script_dir = os.path.dirname(os.path.abspath(__file__))

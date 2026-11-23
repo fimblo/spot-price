@@ -51,11 +51,11 @@ bash scripts/print-crontab.sh
 
 Then add them to your crontab (`crontab -e`). The schedule is:
 
-| Time  | Script                  | What it does                        |
-|-------|-------------------------|-------------------------------------|
-| 15:00 | `fetch-spot-prices.py`  | Pull tomorrow's prices into the DB  |
-| 07:00 | `morning-report.py`     | Send chart + cheapest window today  |
-| 19:00 | `evening-report.py`     | Send cheapest overnight window      |
+| Time  | Script                  | What it does                          |
+|-------|-------------------------|---------------------------------------|
+| 15:00 | `fetch-spot-prices.py`  | Pull tomorrow's prices into the DB    |
+| 07:00 | `morning-report.py`     | Send chart + cheapest window today    |
+| 19:00 | `evening-report.py`     | Chart + cheapest window until 14:00 tomorrow |
 
 Logs go to `logs/` (gitignored). The fetch runs at 15:00 because elprisetjustnu.se publishes tomorrow's prices around 14:00.
 

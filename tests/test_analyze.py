@@ -216,7 +216,7 @@ class TestQuarterHourlyResolution:
 
 class TestCoverageHours:
     """
-    The evening report stitches its 12h window from two days, so a missing day
+    The evening report stitches its window from two days, so a missing day
     still leaves enough rows to draw a chart of only half the night. These
     cover the arithmetic that lets it notice.
     """

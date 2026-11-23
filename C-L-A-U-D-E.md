@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Fetches Swedish electricity spot prices for SE4 (Skåne) region and sends Telegram notifications twice daily: a price chart with the cheapest 1.5-hour window for the rest of today (07:00) and one for the next 12 hours overnight (19:00). Useful for deciding when to run dishes or laundry.
+Fetches Swedish electricity spot prices for SE4 (Skåne) region and sends Telegram notifications twice daily: a price chart with the cheapest 1.5-hour window for the rest of today (07:00) and one from 19:00 through 14:00 the next day (19:00). Useful for deciding when to run dishes or laundry.
 
 ## Commands
 
@@ -50,7 +50,7 @@ Source modules in `src/`:
 
 Both reports send a photo with caption, in the same format: a colour-coded chart plus a caption showing the cheapest 1.5h window *and* the wider span of start times that would still be in the same price zone, so a text-only notification on a lock screen still conveys "you can start any time in this range" rather than just the single optimal start. `format_window_message()` in `src/analyze.py` renders that caption; both scripts share it.
 
-Morning report covers the rest of today, from the current hour onward. Evening report covers the next 12 hours from send time (e.g. 19:00 tonight through ~07:00 tomorrow), combining today's remaining prices with tomorrow's early-morning prices fetched earlier in the day.
+Morning report covers the rest of today, from the current hour onward. Evening report covers send time through 14:00 tomorrow (`WINDOW_END`), combining today's remaining prices with tomorrow's prices fetched earlier in the day — so the caption can also say "wait for tomorrow's midday dip". If the data stops earlier, the chart just ends earlier.
 
 ## Price thresholds
 
@@ -117,7 +117,7 @@ Copy `.env.example` to `.env`:
 
 **All the "tomorrow" retries in the world don't help if the data lands after 18:00.** This is the failure the 16:00/18:00 lines did *not* fix, and it bit again on 2026-09-09. Every fetch line above runs with the default `--datediff 1`, so the last attempt at day D's data happens at 18:00 on D−1; when D arrives, the 15:00 run asks for D+1 and nobody ever goes back for D. On 2026-09-08 all three attempts at 09-09 404'd, and the next morning's report had nothing to draw — even though the API served 09-09 perfectly well by then. The 06:30 `--datediff 0 --skip-if-present` line closes that window: it is the only fetch that asks for *today*, and it runs 30 minutes before the morning report. When diagnosing a hole in the DB, check the *publication* timing, not the local machine — a 404 is the remote API's answer, and it will not be explained by a reboot or an apt upgrade.
 
-**A missing day can hide inside the evening report.** It builds its 12h window from today + tomorrow, so one missing day still leaves enough rows to draw a plausible-looking chart of only half the night — it looks healthy while silently dropping hours. It now compares `coverage_hours()` against `LOOKAHEAD_HOURS` and prepends a warning to the caption when the window is short by more than an hour.
+**A missing day can hide inside the evening report.** It builds its window from today + tomorrow, so one missing day still leaves enough rows to draw a plausible-looking chart of only half the night — it looks healthy while silently dropping hours. It now compares `coverage_hours()` against the hours until `WINDOW_END` and prepends a warning to the caption when the window is short by more than an hour.
 
 **kaleido on macOS.** On first run, `morning-report.py` generates a PNG via kaleido, which spawns a subprocess. macOS may show a permission dialog asking if your terminal app can "modify" the system. Click Allow — it's expected behaviour.
 

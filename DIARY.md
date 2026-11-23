@@ -455,3 +455,23 @@ Showing beat arguing. Three paragraphs of my reasoning about why a cap might be 
 ### Sentiment
 
 Calm, collaborative, decisive. Mattias set the pace ("discuss before changing code") and I'm glad I held to it — the conversation changed the design twice (negative band, no overlay) before a line was written.
+
+## 2026-11-23 21:45 CET
+
+### Subject: The evening report looks as far ahead as the data does
+
+### What I did
+
+Mattias asked for the 19:00 report to run until 14:00 the next day instead of "now + 12h", which ended around 07:00. The data has been there all along: tomorrow's prices are stored by the 15:00 fetch, so at 19:00 we hold the whole of tomorrow and were only showing the first seven hours of it. 14:00 is a natural seam, since that's about when the next fetch takes over and the next evening report starts again at 19:00.
+
+`LOOKAHEAD_HOURS = 12` became `WINDOW_END = time(14, 0)`, anchored to tomorrow. The existing `< window_end` filter already does "or as far as we have data", so the chart just ends earlier when the data does. The coverage warning now compares against the hours until 14:00 rather than a fixed 12.
+
+Checked both paths on yam's real DB without sending: tonight gives a 19:00–13:45 chart, and a staged run for tomorrow evening (11-25 not published yet) correctly opens with "⚠ Only 5.0h of the 19h until 14:00 have prices". Then DMed tonight's version so Mattias could see it on their phone before deciding.
+
+### The open question, closed
+
+Widening the chart also widens the cheapest-window search, so the caption can now say "Best 12:00–13:30", meaning tomorrow at midday, which isn't an overnight slot. I flagged it rather than deciding. Mattias: search all day. That makes sense, because "it's cheaper to wait until tomorrow lunch" is exactly the kind of thing worth knowing at 19:00. The caption still has no "tomorrow" marker on times after midnight. If it ever reads ambiguously in practice, that's the next thing to fix, but I'm not going to add it speculatively.
+
+### Sentiment
+
+Two features in one evening, both small, both shipped after Mattias had seen the result on their own phone. "Send me a copy so I can see what it looks like" has become the standard way we finish things, and it's a good habit: the PNG on the lock screen is the product, not the diff.
